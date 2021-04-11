@@ -14,6 +14,8 @@
 // see <https://www.gnu.org/licenses/>.
 
 use assert_cmd::Command;
+#[cfg(all(unix, not(target_os = "macos")))]
+use std::os::unix::fs::MetadataExt;
 use std::{ffi::OsStr, fs, path::Path};
 use tempfile::TempDir;
 
@@ -73,6 +75,30 @@ fn creates_data_directory() {
         unimplemented!()
     };
     assert!(data_dir.is_dir());
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+#[test]
+fn creates_parent_directories_0o700() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .assert();
+    assert_eq!(
+        home_dir.path().join(".local").metadata().unwrap().mode() & 0o700,
+        0o700
+    );
+    assert_eq!(
+        home_dir
+            .path()
+            .join(".local/share")
+            .metadata()
+            .unwrap()
+            .mode()
+            & 0o700,
+        0o700
+    );
 }
 
 #[test]

@@ -14,7 +14,9 @@
 // see <https://www.gnu.org/licenses/>.
 
 use directories::ProjectDirs;
-use std::{env, fs, process};
+#[cfg(all(unix, not(target_os = "macos")))]
+use std::os::unix::fs::DirBuilderExt;
+use std::{env, fs::DirBuilder, process};
 
 fn main() {
     if let Err(e) = run() {
@@ -27,7 +29,12 @@ fn run() -> Result<(), String> {
     let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
         .ok_or("unable to determine project directories")?;
     let data_dir = project_dirs.data_dir();
-    fs::create_dir_all(data_dir)
+    let mut builder = DirBuilder::new();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    builder.mode(0o700);
+    builder
+        .recursive(true)
+        .create(data_dir)
         .map_err(|e| format!("unable to create `{}`: {}", data_dir.display(), e))?;
     let mut args = env::args().skip(1);
     match args.next() {

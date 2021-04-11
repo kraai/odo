@@ -30,10 +30,10 @@ fn run() -> Result<(), String> {
         .ok_or("unable to determine project directories")?;
     let data_dir = project_dirs.data_dir();
     let mut builder = DirBuilder::new();
-    builder.recursive(true);
     #[cfg(all(unix, not(target_os = "macos")))]
     builder.mode(0o700);
     builder
+        .recursive(true)
         .create(data_dir)
         .map_err(|e| format!("unable to create `{}`: {}", data_dir.display(), e))?;
     let mut args = env::args().skip(1);

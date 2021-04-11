@@ -21,7 +21,13 @@ fn main() {
         Some(subcommand) => match subcommand.as_str() {
             "action" => match args.next() {
                 Some(subsubcommand) => match subsubcommand.as_str() {
-                    "add" => eprintln!("odo: missing description"),
+                    "add" => {
+                        if args.next().is_none() {
+                            eprintln!("odo: missing description");
+                        } else {
+                            process::exit(0);
+                        }
+                    }
                     _ => eprintln!("odo: no such subsubcommand: `{}`", subsubcommand),
                 },
                 None => eprintln!("odo: missing subsubcommand"),

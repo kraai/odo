@@ -33,6 +33,7 @@ fn run() -> Result<(), String> {
                             return Err("missing description".into());
                         }
                     }
+                    "ls" => {}
                     _ => return Err(format!("no such subsubcommand: `{}`", subsubcommand)),
                 },
                 None => return Err("missing subsubcommand".into()),

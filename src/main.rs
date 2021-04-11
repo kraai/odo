@@ -14,7 +14,7 @@
 // see <https://www.gnu.org/licenses/>.
 
 use directories::ProjectDirs;
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 use std::os::unix::fs::DirBuilderExt;
 use std::{env, fs::DirBuilder, process};
 

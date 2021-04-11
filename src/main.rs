@@ -13,7 +13,8 @@
 // You should have received a copy of the GNU Affero General Public License along with odo.  If not,
 // see <https://www.gnu.org/licenses/>.
 
-use std::{env, process};
+use directories::ProjectDirs;
+use std::{env, fs, process};
 
 fn main() {
     if let Err(e) = run() {
@@ -23,6 +24,11 @@ fn main() {
 }
 
 fn run() -> Result<(), String> {
+    let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
+        .ok_or("unable to determine project directories")?;
+    let data_dir = project_dirs.data_dir();
+    fs::create_dir_all(data_dir)
+        .map_err(|e| format!("unable to create `{}`: {}", data_dir.display(), e))?;
     let mut args = env::args().skip(1);
     match args.next() {
         Some(subcommand) => match subcommand.as_str() {

@@ -14,11 +14,69 @@
 // see <https://www.gnu.org/licenses/>.
 
 use assert_cmd::Command;
+use std::{ffi::OsStr, fs, path::Path};
+use tempfile::TempDir;
+
+struct TempHomeDir {
+    dir: TempDir,
+}
+
+impl TempHomeDir {
+    fn new() -> Self {
+        let dir = tempfile::tempdir().unwrap();
+        if cfg!(windows) {
+            fs::create_dir_all(dir.path().join("AppData").join("Local")).unwrap();
+            fs::create_dir_all(dir.path().join("AppData").join("Roaming")).unwrap();
+        }
+        TempHomeDir { dir }
+    }
+
+    fn path(&self) -> &Path {
+        self.dir.path()
+    }
+}
+
+trait CommandExt {
+    fn home_dir<P: AsRef<Path> + AsRef<OsStr>>(&mut self, dir: P) -> &mut Self;
+}
+
+impl CommandExt for Command {
+    fn home_dir<P: AsRef<Path> + AsRef<OsStr>>(&mut self, dir: P) -> &mut Command {
+        if cfg!(unix) {
+            self.env("HOME", dir).env_remove("XDG_DATA_DIR")
+        } else {
+            self.env("USERPROFILE", dir)
+        }
+    }
+}
+
+#[test]
+fn creates_data_directory() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .assert();
+    let data_dir = if cfg!(target_os = "macos") {
+        home_dir
+            .path()
+            .join("Library/Application Support/org.ftbfs.odo")
+    } else if cfg!(unix) {
+        home_dir.path().join(".local/share/odo")
+    } else if cfg!(windows) {
+        home_dir.path().join("AppData\\Roaming\\odo")
+    } else {
+        unimplemented!()
+    };
+    assert!(data_dir.is_dir());
+}
 
 #[test]
 fn reports_missing_subcommand() {
+    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
+        .home_dir(home_dir.path())
         .assert()
         .failure()
         .stdout("")
@@ -27,8 +85,10 @@ fn reports_missing_subcommand() {
 
 #[test]
 fn reports_no_such_subcommand() {
+    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
+        .home_dir(home_dir.path())
         .arg("foo")
         .assert()
         .failure()
@@ -38,8 +98,10 @@ fn reports_no_such_subcommand() {
 
 #[test]
 fn reports_missing_subsubcommand() {
+    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
+        .home_dir(home_dir.path())
         .arg("action")
         .assert()
         .failure()
@@ -49,8 +111,10 @@ fn reports_missing_subsubcommand() {
 
 #[test]
 fn reports_no_such_subsubcommand() {
+    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
+        .home_dir(home_dir.path())
         .args(&["action", "foo"])
         .assert()
         .failure()
@@ -60,8 +124,10 @@ fn reports_no_such_subsubcommand() {
 
 #[test]
 fn reports_missing_description() {
+    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
+        .home_dir(home_dir.path())
         .args(&["action", "add"])
         .assert()
         .failure()
@@ -71,8 +137,10 @@ fn reports_missing_description() {
 
 #[test]
 fn adds_action() {
+    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
+        .home_dir(home_dir.path())
         .args(&["action", "add", "Read", "*Network", "Effect*."])
         .assert()
         .success()
@@ -82,8 +150,10 @@ fn adds_action() {
 
 #[test]
 fn lists_no_actions() {
+    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
+        .home_dir(home_dir.path())
         .args(&["action", "ls"])
         .assert()
         .success()

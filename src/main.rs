@@ -26,6 +26,21 @@ fn main() {
 }
 
 fn run() -> Result<(), String> {
+    validate_args()?;
+    let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
+        .ok_or("unable to determine project directories")?;
+    let data_dir = project_dirs.data_dir();
+    let mut builder = DirBuilder::new();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    builder.mode(0o700);
+    builder
+        .recursive(true)
+        .create(data_dir)
+        .map_err(|e| format!("unable to create `{}`: {}", data_dir.display(), e))?;
+    Ok(())
+}
+
+fn validate_args() -> Result<(), String> {
     let mut args = env::args().skip(1);
     match args.next() {
         Some(subcommand) => match subcommand.as_str() {
@@ -35,34 +50,15 @@ fn run() -> Result<(), String> {
                         if args.next().is_none() {
                             return Err("missing description".into());
                         }
-                        let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
-                            .ok_or("unable to determine project directories")?;
-                        let data_dir = project_dirs.data_dir();
-                        let mut builder = DirBuilder::new();
-                        #[cfg(all(unix, not(target_os = "macos")))]
-                        builder.mode(0o700);
-                        builder.recursive(true).create(data_dir).map_err(|e| {
-                            format!("unable to create `{}`: {}", data_dir.display(), e)
-                        })?;
+                        Ok(())
                     }
-                    "ls" => {
-                        let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
-                            .ok_or("unable to determine project directories")?;
-                        let data_dir = project_dirs.data_dir();
-                        let mut builder = DirBuilder::new();
-                        #[cfg(all(unix, not(target_os = "macos")))]
-                        builder.mode(0o700);
-                        builder.recursive(true).create(data_dir).map_err(|e| {
-                            format!("unable to create `{}`: {}", data_dir.display(), e)
-                        })?;
-                    }
-                    _ => return Err(format!("no such subsubcommand: `{}`", subsubcommand)),
+                    "ls" => Ok(()),
+                    _ => Err(format!("no such subsubcommand: `{}`", subsubcommand)),
                 },
-                None => return Err("missing subsubcommand".into()),
+                None => Err("missing subsubcommand".into()),
             },
-            _ => return Err(format!("no such subcommand: `{}`", subcommand)),
+            _ => Err(format!("no such subcommand: `{}`", subcommand)),
         },
-        None => return Err("missing subcommand".into()),
+        None => Err("missing subcommand".into()),
     }
-    Ok(())
 }

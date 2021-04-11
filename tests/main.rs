@@ -60,7 +60,7 @@ fn creates_data_directory() {
     let data_dir = if cfg!(target_os = "macos") {
         home_dir
             .path()
-            .join("Library/Application Support/com.ftbfs.odo")
+            .join("Library/Application Support/org.ftbfs.odo")
     } else if cfg!(unix) {
         home_dir.path().join(".local/share/odo")
     } else if cfg!(windows) {

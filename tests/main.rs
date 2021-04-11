@@ -57,7 +57,7 @@ fn creates_data_directory() {
         .unwrap()
         .home_dir(home_dir.path())
         .assert();
-    let data_dir = if cfg!(macos) {
+    let data_dir = if cfg!(target_os = "macos") {
         home_dir
             .path()
             .join("Library/Application Support/com.ftbfs.odo")

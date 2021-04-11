@@ -46,8 +46,10 @@ impl CommandExt for Command {
             self.env("HOME", dir)
         } else if cfg!(unix) {
             self.env("HOME", dir).env_remove("XDG_DATA_DIR")
-        } else {
+        } else if cfg!(windows) {
             self.env("USERPROFILE", dir)
+        } else {
+            unimplemented!()
         }
     }
 }

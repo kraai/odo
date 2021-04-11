@@ -18,7 +18,11 @@ use std::{env, process};
 fn main() {
     if let Some(subcommand) = env::args().nth(1) {
         if subcommand == "action" {
-            eprintln!("odo: missing subsubcommand");
+            if let Some(subsubcommand) = env::args().nth(2) {
+                eprintln!("odo: no such subsubcommand: `{}`", subsubcommand);
+            } else {
+                eprintln!("odo: missing subsubcommand");
+            }
         } else {
             eprintln!("odo: no such subcommand: `{}`", subcommand);
         }

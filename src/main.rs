@@ -26,16 +26,6 @@ fn main() {
 }
 
 fn run() -> Result<(), String> {
-    let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
-        .ok_or("unable to determine project directories")?;
-    let data_dir = project_dirs.data_dir();
-    let mut builder = DirBuilder::new();
-    #[cfg(all(unix, not(target_os = "macos")))]
-    builder.mode(0o700);
-    builder
-        .recursive(true)
-        .create(data_dir)
-        .map_err(|e| format!("unable to create `{}`: {}", data_dir.display(), e))?;
     let mut args = env::args().skip(1);
     match args.next() {
         Some(subcommand) => match subcommand.as_str() {
@@ -45,8 +35,27 @@ fn run() -> Result<(), String> {
                         if args.next().is_none() {
                             return Err("missing description".into());
                         }
+                        let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
+                            .ok_or("unable to determine project directories")?;
+                        let data_dir = project_dirs.data_dir();
+                        let mut builder = DirBuilder::new();
+                        #[cfg(all(unix, not(target_os = "macos")))]
+                        builder.mode(0o700);
+                        builder.recursive(true).create(data_dir).map_err(|e| {
+                            format!("unable to create `{}`: {}", data_dir.display(), e)
+                        })?;
                     }
-                    "ls" => {}
+                    "ls" => {
+                        let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
+                            .ok_or("unable to determine project directories")?;
+                        let data_dir = project_dirs.data_dir();
+                        let mut builder = DirBuilder::new();
+                        #[cfg(all(unix, not(target_os = "macos")))]
+                        builder.mode(0o700);
+                        builder.recursive(true).create(data_dir).map_err(|e| {
+                            format!("unable to create `{}`: {}", data_dir.display(), e)
+                        })?;
+                    }
                     _ => return Err(format!("no such subsubcommand: `{}`", subsubcommand)),
                 },
                 None => return Err("missing subsubcommand".into()),

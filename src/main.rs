@@ -31,9 +31,8 @@ fn run() -> Result<(), String> {
     let data_dir = project_dirs.data_dir();
     let mut builder = DirBuilder::new();
     builder.recursive(true);
-    if cfg!(all(unix, not(target_os = "macos"))) {
-        builder.mode(0o700);
-    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    builder.mode(0o700);
     builder
         .create(data_dir)
         .map_err(|e| format!("unable to create `{}`: {}", data_dir.display(), e))?;

@@ -42,10 +42,14 @@ trait CommandExt {
 
 impl CommandExt for Command {
     fn home_dir<P: AsRef<Path> + AsRef<OsStr>>(&mut self, dir: P) -> &mut Command {
-        if cfg!(unix) {
+        if cfg!(target_os = "macos") {
+            self.env("HOME", dir)
+        } else if cfg!(unix) {
             self.env("HOME", dir).env_remove("XDG_DATA_DIR")
-        } else {
+        } else if cfg!(windows) {
             self.env("USERPROFILE", dir)
+        } else {
+            unimplemented!()
         }
     }
 }

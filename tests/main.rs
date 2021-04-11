@@ -155,7 +155,7 @@ fn adds_action() {
 }
 
 #[test]
-fn adding_action_creates_data_directory() {
+fn creates_data_directory() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -176,31 +176,9 @@ fn adding_action_creates_data_directory() {
     assert!(data_dir.is_dir());
 }
 
-#[test]
-fn listing_actions_creates_data_directory() {
-    let home_dir = TempHomeDir::new();
-    Command::cargo_bin("odo")
-        .unwrap()
-        .home_dir(home_dir.path())
-        .args(&["action", "ls"])
-        .assert();
-    let data_dir = if cfg!(target_os = "macos") {
-        home_dir
-            .path()
-            .join("Library/Application Support/org.ftbfs.odo")
-    } else if cfg!(unix) {
-        home_dir.path().join(".local/share/odo")
-    } else if cfg!(windows) {
-        home_dir.path().join("AppData\\Roaming\\odo")
-    } else {
-        unimplemented!()
-    };
-    assert!(data_dir.is_dir());
-}
-
 #[cfg(all(unix, not(target_os = "macos")))]
 #[test]
-fn adding_action_creates_parent_directories_0o700() {
+fn creates_parent_directories_0o700() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()

@@ -16,19 +16,30 @@
 use std::{env, process};
 
 fn main() {
+    if let Err(e) = run() {
+        eprintln!("odo: {}", e);
+        process::exit(1);
+    }
+}
+
+fn run() -> Result<(), String> {
     let mut args = env::args().skip(1);
     match args.next() {
         Some(subcommand) => match subcommand.as_str() {
             "action" => match args.next() {
                 Some(subsubcommand) => match subsubcommand.as_str() {
-                    "add" => eprintln!("odo: missing description"),
-                    _ => eprintln!("odo: no such subsubcommand: `{}`", subsubcommand),
+                    "add" => {
+                        if args.next().is_none() {
+                            return Err("missing description".into());
+                        }
+                    }
+                    _ => return Err(format!("no such subsubcommand: `{}`", subsubcommand)),
                 },
-                None => eprintln!("odo: missing subsubcommand"),
+                None => return Err("missing subsubcommand".into()),
             },
-            _ => eprintln!("odo: no such subcommand: `{}`", subcommand),
+            _ => return Err(format!("no such subcommand: `{}`", subcommand)),
         },
-        None => eprintln!("odo: missing subcommand"),
+        None => return Err("missing subcommand".into()),
     }
-    process::exit(1);
+    Ok(())
 }

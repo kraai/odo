@@ -68,3 +68,14 @@ fn reports_missing_description() {
         .stdout("")
         .stderr("odo: missing description\n");
 }
+
+#[test]
+fn adds_action() {
+    Command::cargo_bin("odo")
+        .unwrap()
+        .args(&["action", "add", "Read", "*Network", "Effect*."])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+}

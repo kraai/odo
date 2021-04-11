@@ -20,7 +20,10 @@ fn main() {
     match args.next() {
         Some(subcommand) => match subcommand.as_str() {
             "action" => match args.next() {
-                Some(subsubcommand) => eprintln!("odo: no such subsubcommand: `{}`", subsubcommand),
+                Some(subsubcommand) => match subsubcommand.as_str() {
+                    "add" => eprintln!("odo: missing description"),
+                    _ => eprintln!("odo: no such subsubcommand: `{}`", subsubcommand),
+                },
                 None => eprintln!("odo: missing subsubcommand"),
             },
             _ => eprintln!("odo: no such subcommand: `{}`", subcommand),

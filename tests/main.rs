@@ -57,3 +57,14 @@ fn reports_no_such_subsubcommand() {
         .stdout("")
         .stderr("odo: no such subsubcommand: `foo`\n");
 }
+
+#[test]
+fn reports_missing_description() {
+    Command::cargo_bin("odo")
+        .unwrap()
+        .args(&["action", "add"])
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr("odo: missing description\n");
+}

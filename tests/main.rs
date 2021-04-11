@@ -79,3 +79,14 @@ fn adds_action() {
         .stdout("")
         .stderr("");
 }
+
+#[test]
+fn lists_no_actions() {
+    Command::cargo_bin("odo")
+        .unwrap()
+        .args(&["action", "ls"])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+}

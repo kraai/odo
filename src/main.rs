@@ -16,18 +16,16 @@
 use std::{env, process};
 
 fn main() {
-    if let Some(subcommand) = env::args().nth(1) {
-        if subcommand == "action" {
-            if let Some(subsubcommand) = env::args().nth(2) {
-                eprintln!("odo: no such subsubcommand: `{}`", subsubcommand);
-            } else {
-                eprintln!("odo: missing subsubcommand");
-            }
-        } else {
-            eprintln!("odo: no such subcommand: `{}`", subcommand);
-        }
-    } else {
-        eprintln!("odo: missing subcommand");
+    let mut args = env::args().skip(1);
+    match args.next() {
+        Some(subcommand) => match subcommand.as_str() {
+            "action" => match args.next() {
+                Some(subsubcommand) => eprintln!("odo: no such subsubcommand: `{}`", subsubcommand),
+                None => eprintln!("odo: missing subsubcommand"),
+            },
+            _ => eprintln!("odo: no such subcommand: `{}`", subcommand),
+        },
+        None => eprintln!("odo: missing subcommand"),
     }
     process::exit(1);
 }

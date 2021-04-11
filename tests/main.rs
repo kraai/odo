@@ -13,9 +13,14 @@
 // You should have received a copy of the GNU Affero General Public License along with odo.  If not,
 // see <https://www.gnu.org/licenses/>.
 
-use std::process;
+use assert_cmd::Command;
 
-fn main() {
-    eprintln!("odo: missing subcommand");
-    process::exit(1);
+#[test]
+fn reports_missing_subcommand() {
+    Command::cargo_bin("odo")
+        .unwrap()
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr("odo: missing subcommand\n");
 }

@@ -16,7 +16,7 @@
 use std::{env, process};
 
 fn main() {
-    if let Some(subcommand) = env::args().skip(1).next() {
+    if let Some(subcommand) = env::args().nth(1) {
         eprintln!("odo: no such subcommand: `{}`", subcommand);
     } else {
         eprintln!("odo: missing subcommand");

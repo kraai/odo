@@ -24,3 +24,14 @@ fn reports_missing_subcommand() {
         .stdout("")
         .stderr("odo: missing subcommand\n");
 }
+
+#[test]
+fn reports_no_such_subcommand() {
+    Command::cargo_bin("odo")
+        .unwrap()
+        .arg("foo")
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr("odo: no such subcommand: `foo`\n");
+}

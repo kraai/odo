@@ -13,9 +13,13 @@
 // You should have received a copy of the GNU Affero General Public License along with odo.  If not,
 // see <https://www.gnu.org/licenses/>.
 
-use std::process;
+use std::{env, process};
 
 fn main() {
-    eprintln!("odo: missing subcommand");
+    if let Some(subcommand) = env::args().skip(1).next() {
+        eprintln!("odo: no such subcommand: `{}`", subcommand);
+    } else {
+        eprintln!("odo: missing subcommand");
+    }
     process::exit(1);
 }

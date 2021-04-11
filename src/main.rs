@@ -25,7 +25,7 @@ fn main() {
 
 fn run() -> Result<(), String> {
     let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
-        .ok_or_else(|| "unable to determine project directories")?;
+        .ok_or("unable to determine project directories")?;
     let data_dir = project_dirs.data_dir();
     fs::create_dir_all(data_dir)
         .map_err(|e| format!("unable to create `{}`: {}", data_dir.display(), e))?;

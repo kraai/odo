@@ -213,3 +213,24 @@ fn lists_no_actions() {
         .stdout("")
         .stderr("");
 }
+
+#[test]
+fn lists_action() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["action", "add", "Read", "*Network", "Effect*."])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["action", "ls"])
+        .assert()
+        .success()
+        .stdout("Read *Network Effect*.\n")
+        .stderr("");
+}

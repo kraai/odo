@@ -13,24 +13,11 @@
 // You should have received a copy of the GNU Affero General Public License along with odo.  If not,
 // see <https://www.gnu.org/licenses/>.
 
-#[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate diesel_migrations;
-
-use diesel::{prelude::*, Connection, SqliteConnection};
 use directories::ProjectDirs;
+use rusqlite::Connection;
 #[cfg(all(unix, not(target_os = "macos")))]
 use std::os::unix::fs::DirBuilderExt;
 use std::{env, fs::DirBuilder, process};
-
-table! {
-    actions (description) {
-    description -> Text,
-    }
-}
-
-embed_migrations!("migrations");
 
 fn main() {
     if let Err(e) = run() {
@@ -52,29 +39,39 @@ fn run() -> Result<(), String> {
         .create(data_dir)
         .map_err(|e| format!("unable to create `{}`: {}", data_dir.display(), e))?;
     let database_path = data_dir.join("odo.sqlite3");
-    let connection = SqliteConnection::establish(
-        database_path
-            .to_str()
-            .ok_or_else(|| format!("unable to convert `{}` to UTF-8", database_path.display()))?,
-    )
-    .map_err(|e| format!("unable to open `{}`: {}", database_path.display(), e))?;
-    embedded_migrations::run(&connection)
-        .map_err(|e| format!("unable to run migrations: {}", e))?;
+    let connection = Connection::open(&database_path)
+        .map_err(|e| format!("unable to open `{}`: {}", database_path.display(), e))?;
+    connection
+        .execute(
+            "CREATE TABLE IF NOT EXISTS actions (description PRIMARY KEY)",
+            [],
+        )
+        .map_err(|e| format!("unable to create actions table: {}", e))?;
     match subcommand {
         Subcommand::Action(subsubcommand) => match subsubcommand {
             ActionSubcommand::Add { description } => {
-                diesel::insert_into(actions::table)
-                    .values(&Action { description })
-                    .execute(&connection)
+                connection
+                    .execute(
+                        "INSERT INTO actions VALUES(?1)",
+                        rusqlite::params![description],
+                    )
                     .map_err(|e| format!("unable to add action: {}", e))?;
             }
             ActionSubcommand::List => {
-                let results = actions::table
-                    .load::<Action>(&connection)
-                    .map_err(|e| format!("unable to load actions: {}", e))?;
-
-                for action in results {
-                    println!("{}", action.description);
+                let mut statement = connection
+                    .prepare("SELECT * FROM actions")
+                    .map_err(|e| format!("unable to prepare statement: {}", e))?;
+                let mut rows = statement
+                    .query([])
+                    .map_err(|e| format!("unable to execute statement: {}", e))?;
+                while let Some(row) = rows
+                    .next()
+                    .map_err(|e| format!("unable to read row: {}", e))?
+                {
+                    let description: String = row
+                        .get(0)
+                        .map_err(|e| format!("unable to read description: {}", e))?;
+                    println!("{}", description);
                 }
             }
         },
@@ -115,10 +112,4 @@ enum Subcommand {
 enum ActionSubcommand {
     Add { description: String },
     List,
-}
-
-#[derive(Insertable, Queryable)]
-#[table_name = "actions"]
-struct Action {
-    description: String,
 }

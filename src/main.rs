@@ -57,6 +57,14 @@ fn run() -> Result<(), String> {
                     )
                     .map_err(|e| format!("unable to add action: {}", e))?;
             }
+            ActionSubcommand::Remove { description } => {
+                connection
+                    .execute(
+                        "DELETE FROM actions WHERE description = ?1",
+                        rusqlite::params![description],
+                    )
+                    .map_err(|e| format!("unable to remove action: {}", e))?;
+            }
             ActionSubcommand::List => {
                 let mut statement = connection
                     .prepare("SELECT * FROM actions")
@@ -94,6 +102,15 @@ fn parse_args() -> Result<Subcommand, String> {
                             description: args.join(" "),
                         }))
                     }
+                    "rm" => {
+                        let args = args.collect::<Vec<_>>();
+                        if args.is_empty() {
+                            return Err("missing description".into());
+                        }
+                        Ok(Subcommand::Action(ActionSubcommand::Remove {
+                            description: args.join(" "),
+                        }))
+                    }
                     "ls" => Ok(Subcommand::Action(ActionSubcommand::List)),
                     _ => Err(format!("no such subsubcommand: `{}`", subsubcommand)),
                 },
@@ -111,5 +128,6 @@ enum Subcommand {
 
 enum ActionSubcommand {
     Add { description: String },
+    Remove { description: String },
     List,
 }

@@ -234,3 +234,32 @@ fn lists_action() {
         .stdout("Read *Network Effect*.\n")
         .stderr("");
 }
+
+#[test]
+fn removes_action() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["action", "add", "Read", "*Network", "Effect*."])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["action", "rm", "Read", "*Network", "Effect*."])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["action", "ls"])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+}

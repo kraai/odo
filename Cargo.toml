@@ -24,7 +24,11 @@ license = "AGPL-3.0-or-later"
 
 [dependencies]
 directories = "3"
+rusqlite = "0.25"
 
 [dev-dependencies]
 assert_cmd = "1"
 tempfile = "3"
+
+[features]
+sqlite-bundled = ["rusqlite/bundled"]

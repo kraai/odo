@@ -14,6 +14,7 @@
 // see <https://www.gnu.org/licenses/>.
 
 use directories::ProjectDirs;
+use rusqlite::Connection;
 #[cfg(all(unix, not(target_os = "macos")))]
 use std::os::unix::fs::DirBuilderExt;
 use std::{env, fs::DirBuilder, process};
@@ -26,7 +27,7 @@ fn main() {
 }
 
 fn run() -> Result<(), String> {
-    validate_args()?;
+    let subcommand = parse_args()?;
     let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
         .ok_or("unable to determine project directories")?;
     let data_dir = project_dirs.data_dir();
@@ -37,22 +38,63 @@ fn run() -> Result<(), String> {
         .recursive(true)
         .create(data_dir)
         .map_err(|e| format!("unable to create `{}`: {}", data_dir.display(), e))?;
+    let database_path = data_dir.join("odo.sqlite3");
+    let connection = Connection::open(&database_path)
+        .map_err(|e| format!("unable to open `{}`: {}", database_path.display(), e))?;
+    connection
+        .execute(
+            "CREATE TABLE IF NOT EXISTS actions (description PRIMARY KEY)",
+            [],
+        )
+        .map_err(|e| format!("unable to create actions table: {}", e))?;
+    match subcommand {
+        Subcommand::Action(subsubcommand) => match subsubcommand {
+            ActionSubcommand::Add { description } => {
+                connection
+                    .execute(
+                        "INSERT INTO actions VALUES(?1)",
+                        rusqlite::params![description],
+                    )
+                    .map_err(|e| format!("unable to add action: {}", e))?;
+            }
+            ActionSubcommand::List => {
+                let mut statement = connection
+                    .prepare("SELECT * FROM actions")
+                    .map_err(|e| format!("unable to prepare statement: {}", e))?;
+                let mut rows = statement
+                    .query([])
+                    .map_err(|e| format!("unable to execute statement: {}", e))?;
+                while let Some(row) = rows
+                    .next()
+                    .map_err(|e| format!("unable to read row: {}", e))?
+                {
+                    let description: String = row
+                        .get(0)
+                        .map_err(|e| format!("unable to read description: {}", e))?;
+                    println!("{}", description);
+                }
+            }
+        },
+    }
     Ok(())
 }
 
-fn validate_args() -> Result<(), String> {
+fn parse_args() -> Result<Subcommand, String> {
     let mut args = env::args().skip(1);
     match args.next() {
         Some(subcommand) => match subcommand.as_str() {
             "action" => match args.next() {
                 Some(subsubcommand) => match subsubcommand.as_str() {
                     "add" => {
-                        if args.next().is_none() {
+                        let args = args.collect::<Vec<_>>();
+                        if args.is_empty() {
                             return Err("missing description".into());
                         }
-                        Ok(())
+                        Ok(Subcommand::Action(ActionSubcommand::Add {
+                            description: args.join(" "),
+                        }))
                     }
-                    "ls" => Ok(()),
+                    "ls" => Ok(Subcommand::Action(ActionSubcommand::List)),
                     _ => Err(format!("no such subsubcommand: `{}`", subsubcommand)),
                 },
                 None => Err("missing subsubcommand".into()),
@@ -61,4 +103,13 @@ fn validate_args() -> Result<(), String> {
         },
         None => Err("missing subcommand".into()),
     }
+}
+
+enum Subcommand {
+    Action(ActionSubcommand),
+}
+
+enum ActionSubcommand {
+    Add { description: String },
+    List,
 }

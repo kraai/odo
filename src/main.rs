@@ -27,7 +27,7 @@ fn main() {
 }
 
 fn run() -> Result<(), String> {
-    let subcommand = parse_args()?;
+    let command = parse_args()?;
     let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
         .ok_or("unable to determine project directories")?;
     let data_dir = project_dirs.data_dir();
@@ -47,8 +47,8 @@ fn run() -> Result<(), String> {
             [],
         )
         .map_err(|e| format!("unable to create actions table: {}", e))?;
-    match subcommand {
-        Subcommand::Action(subsubcommand) => match subsubcommand {
+    match command {
+        Command::Action(subcommand) => match subcommand {
             ActionSubcommand::Add { description } => {
                 connection
                     .execute(
@@ -87,18 +87,18 @@ fn run() -> Result<(), String> {
     Ok(())
 }
 
-fn parse_args() -> Result<Subcommand, String> {
+fn parse_args() -> Result<Command, String> {
     let mut args = env::args().skip(1);
     match args.next() {
-        Some(subcommand) => match subcommand.as_str() {
+        Some(command) => match command.as_str() {
             "action" => match args.next() {
-                Some(subsubcommand) => match subsubcommand.as_str() {
+                Some(subcommand) => match subcommand.as_str() {
                     "add" => {
                         let args = args.collect::<Vec<_>>();
                         if args.is_empty() {
                             return Err("missing description".into());
                         }
-                        Ok(Subcommand::Action(ActionSubcommand::Add {
+                        Ok(Command::Action(ActionSubcommand::Add {
                             description: args.join(" "),
                         }))
                     }
@@ -107,22 +107,22 @@ fn parse_args() -> Result<Subcommand, String> {
                         if args.is_empty() {
                             return Err("missing description".into());
                         }
-                        Ok(Subcommand::Action(ActionSubcommand::Remove {
+                        Ok(Command::Action(ActionSubcommand::Remove {
                             description: args.join(" "),
                         }))
                     }
-                    "ls" => Ok(Subcommand::Action(ActionSubcommand::List)),
-                    _ => Err(format!("no such subsubcommand: `{}`", subsubcommand)),
+                    "ls" => Ok(Command::Action(ActionSubcommand::List)),
+                    _ => Err(format!("no such subcommand: `{}`", subcommand)),
                 },
-                None => Err("missing subsubcommand".into()),
+                None => Err("missing subcommand".into()),
             },
-            _ => Err(format!("no such subcommand: `{}`", subcommand)),
+            _ => Err(format!("no such command: `{}`", command)),
         },
-        None => Err("missing subcommand".into()),
+        None => Err("missing command".into()),
     }
 }
 
-enum Subcommand {
+enum Command {
     Action(ActionSubcommand),
 }
 

@@ -57,7 +57,7 @@ impl CommandExt for Command {
 }
 
 #[test]
-fn missing_subcommand_does_not_create_data_directory() {
+fn missing_command_does_not_create_data_directory() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -78,11 +78,37 @@ fn missing_subcommand_does_not_create_data_directory() {
 }
 
 #[test]
+fn reports_missing_command() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr("odo: missing command\n");
+}
+
+#[test]
+fn reports_no_such_command() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .arg("foo")
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr("odo: no such command: `foo`\n");
+}
+
+#[test]
 fn reports_missing_subcommand() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
         .home_dir(home_dir.path())
+        .arg("action")
         .assert()
         .failure()
         .stdout("")
@@ -95,37 +121,11 @@ fn reports_no_such_subcommand() {
     Command::cargo_bin("odo")
         .unwrap()
         .home_dir(home_dir.path())
-        .arg("foo")
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: no such subcommand: `foo`\n");
-}
-
-#[test]
-fn reports_missing_subsubcommand() {
-    let home_dir = TempHomeDir::new();
-    Command::cargo_bin("odo")
-        .unwrap()
-        .home_dir(home_dir.path())
-        .arg("action")
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: missing subsubcommand\n");
-}
-
-#[test]
-fn reports_no_such_subsubcommand() {
-    let home_dir = TempHomeDir::new();
-    Command::cargo_bin("odo")
-        .unwrap()
-        .home_dir(home_dir.path())
         .args(&["action", "foo"])
         .assert()
         .failure()
         .stdout("")
-        .stderr("odo: no such subsubcommand: `foo`\n");
+        .stderr("odo: no such subcommand: `foo`\n");
 }
 
 #[test]

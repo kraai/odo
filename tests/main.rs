@@ -103,7 +103,7 @@ fn reports_no_such_command() {
 }
 
 #[test]
-fn reports_missing_subcommand() {
+fn reports_missing_action_subcommand() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -116,7 +116,7 @@ fn reports_missing_subcommand() {
 }
 
 #[test]
-fn reports_no_such_subcommand() {
+fn reports_no_such_action_subcommand() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -129,7 +129,7 @@ fn reports_no_such_subcommand() {
 }
 
 #[test]
-fn reports_missing_description() {
+fn reports_missing_action_description() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -258,6 +258,121 @@ fn removes_action() {
         .unwrap()
         .home_dir(home_dir.path())
         .args(&["action", "ls"])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+}
+
+#[test]
+fn reports_missing_goal_subcommand() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .arg("goal")
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr("odo: missing subcommand\n");
+}
+
+#[test]
+fn reports_no_such_goal_subcommand() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "foo"])
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr("odo: no such subcommand: `foo`\n");
+}
+
+#[test]
+fn reports_missing_goal_description() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "add"])
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr("odo: missing description\n");
+}
+
+#[test]
+fn adds_goal() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "add", "Read", "*Network", "Effect*."])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+}
+
+#[test]
+fn lists_no_goals() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "ls"])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+}
+
+#[test]
+fn lists_goal() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "add", "Read", "*Network", "Effect*."])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "ls"])
+        .assert()
+        .success()
+        .stdout("Read *Network Effect*.\n")
+        .stderr("");
+}
+
+#[test]
+fn removes_goal() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "add", "Read", "*Network", "Effect*."])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "rm", "Read", "*Network", "Effect*."])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "ls"])
         .assert()
         .success()
         .stdout("")

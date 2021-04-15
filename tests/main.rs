@@ -57,27 +57,6 @@ impl CommandExt for Command {
 }
 
 #[test]
-fn missing_command_does_not_create_data_directory() {
-    let home_dir = TempHomeDir::new();
-    Command::cargo_bin("odo")
-        .unwrap()
-        .home_dir(home_dir.path())
-        .assert();
-    let data_dir = if cfg!(target_os = "macos") {
-        home_dir
-            .path()
-            .join("Library/Application Support/org.ftbfs.odo")
-    } else if cfg!(unix) {
-        home_dir.path().join(".local/share/odo")
-    } else if cfg!(windows) {
-        home_dir.path().join("AppData\\Roaming\\odo")
-    } else {
-        unimplemented!()
-    };
-    assert!(!data_dir.is_dir());
-}
-
-#[test]
 fn reports_missing_command() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")

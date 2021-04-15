@@ -58,10 +58,8 @@ impl CommandExt for Command {
 
 #[test]
 fn reports_missing_command() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .assert()
         .failure()
         .stdout("")
@@ -70,10 +68,8 @@ fn reports_missing_command() {
 
 #[test]
 fn reports_no_such_command() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .arg("foo")
         .assert()
         .failure()
@@ -83,10 +79,8 @@ fn reports_no_such_command() {
 
 #[test]
 fn reports_missing_action_subcommand() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .arg("action")
         .assert()
         .failure()
@@ -96,10 +90,8 @@ fn reports_missing_action_subcommand() {
 
 #[test]
 fn reports_no_such_action_subcommand() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .args(&["action", "foo"])
         .assert()
         .failure()
@@ -109,10 +101,8 @@ fn reports_no_such_action_subcommand() {
 
 #[test]
 fn reports_missing_action_description() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .args(&["action", "add"])
         .assert()
         .failure()
@@ -245,10 +235,8 @@ fn removes_action() {
 
 #[test]
 fn reports_missing_goal_subcommand() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .arg("goal")
         .assert()
         .failure()
@@ -258,10 +246,8 @@ fn reports_missing_goal_subcommand() {
 
 #[test]
 fn reports_no_such_goal_subcommand() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .args(&["goal", "foo"])
         .assert()
         .failure()
@@ -271,10 +257,8 @@ fn reports_no_such_goal_subcommand() {
 
 #[test]
 fn reports_missing_goal_description() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .args(&["goal", "add"])
         .assert()
         .failure()

@@ -57,32 +57,9 @@ impl CommandExt for Command {
 }
 
 #[test]
-fn missing_command_does_not_create_data_directory() {
-    let home_dir = TempHomeDir::new();
-    Command::cargo_bin("odo")
-        .unwrap()
-        .home_dir(home_dir.path())
-        .assert();
-    let data_dir = if cfg!(target_os = "macos") {
-        home_dir
-            .path()
-            .join("Library/Application Support/org.ftbfs.odo")
-    } else if cfg!(unix) {
-        home_dir.path().join(".local/share/odo")
-    } else if cfg!(windows) {
-        home_dir.path().join("AppData\\Roaming\\odo")
-    } else {
-        unimplemented!()
-    };
-    assert!(!data_dir.is_dir());
-}
-
-#[test]
 fn reports_missing_command() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .assert()
         .failure()
         .stdout("")
@@ -91,10 +68,8 @@ fn reports_missing_command() {
 
 #[test]
 fn reports_no_such_command() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .arg("foo")
         .assert()
         .failure()
@@ -104,10 +79,8 @@ fn reports_no_such_command() {
 
 #[test]
 fn reports_missing_action_subcommand() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .arg("action")
         .assert()
         .failure()
@@ -117,10 +90,8 @@ fn reports_missing_action_subcommand() {
 
 #[test]
 fn reports_no_such_action_subcommand() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .args(&["action", "foo"])
         .assert()
         .failure()
@@ -130,10 +101,8 @@ fn reports_no_such_action_subcommand() {
 
 #[test]
 fn reports_missing_action_description() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .args(&["action", "add"])
         .assert()
         .failure()
@@ -266,10 +235,8 @@ fn removes_action() {
 
 #[test]
 fn reports_missing_goal_subcommand() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .arg("goal")
         .assert()
         .failure()
@@ -279,10 +246,8 @@ fn reports_missing_goal_subcommand() {
 
 #[test]
 fn reports_no_such_goal_subcommand() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .args(&["goal", "foo"])
         .assert()
         .failure()
@@ -292,10 +257,8 @@ fn reports_no_such_goal_subcommand() {
 
 #[test]
 fn reports_missing_goal_description() {
-    let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
-        .home_dir(home_dir.path())
         .args(&["goal", "add"])
         .assert()
         .failure()

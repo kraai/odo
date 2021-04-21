@@ -226,6 +226,7 @@ version = "0.1.0"
 dependencies = [
  "assert_cmd",
  "directories",
+ "libsqlite3-sys",
  "rusqlite",
  "tempfile",
 ]

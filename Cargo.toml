@@ -24,6 +24,7 @@ license = "AGPL-3.0-or-later"
 
 [dependencies]
 directories = "3"
+libsqlite3-sys = "*"
 rusqlite = "0.25"
 
 [dev-dependencies]

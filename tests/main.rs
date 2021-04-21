@@ -314,6 +314,120 @@ fn lists_goal() {
 }
 
 #[test]
+fn reports_missing_goal_action() {
+    Command::cargo_bin("odo")
+        .unwrap()
+        .args(&["goal", "add", "--action"])
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr("odo: missing action\n");
+}
+
+#[test]
+fn does_not_list_goal_with_action() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["action", "add", "Borrow", "*Network", "Effect*."])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&[
+            "goal",
+            "add",
+            "--action",
+            "Borrow *Network Effect*.",
+            "Read",
+            "*Network",
+            "Effect*.",
+        ])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "ls"])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+}
+
+#[test]
+fn does_not_add_goal_with_nonexistent_action() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&[
+            "goal",
+            "add",
+            "--action",
+            "Borrow *Network Effect*.",
+            "Read",
+            "*Network",
+            "Effect*.",
+        ])
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr("odo: action does not exist\n");
+}
+
+#[test]
+fn removing_action_clears_goal_action() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["action", "add", "Borrow", "*Network", "Effect*."])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&[
+            "goal",
+            "add",
+            "--action",
+            "Borrow *Network Effect*.",
+            "Read",
+            "*Network",
+            "Effect*.",
+        ])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["action", "rm", "Borrow", "*Network", "Effect*."])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "ls"])
+        .assert()
+        .success()
+        .stdout("Read *Network Effect*.\n")
+        .stderr("");
+}
+
+#[test]
 fn removes_goal() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")

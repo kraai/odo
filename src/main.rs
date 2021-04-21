@@ -43,7 +43,7 @@ fn run() -> Result<(), String> {
         .map_err(|e| format!("unable to open `{}`: {}", database_path.display(), e))?;
     connection
         .execute_batch(include_str!("initialize.sql"))
-        .map_err(|e| format!("unable to create tables: {}", e))?;
+        .map_err(|e| format!("unable to initialize `{}`: {}", database_path.display(), e))?;
     match command {
         Command::Action(subcommand) => match subcommand {
             ActionSubcommand::Add { description } => {

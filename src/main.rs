@@ -44,12 +44,13 @@ fn run() -> Result<(), String> {
     connection
         .execute_batch(
             "CREATE TABLE IF NOT EXISTS actions (description PRIMARY KEY);
-             CREATE TABLE IF NOT EXISTS goals (description PRIMARY KEY);",
+             CREATE TABLE IF NOT EXISTS goals (description PRIMARY KEY, action TEXT REFERENCES actions (description) ON DELETE SET NULL);
+             PRAGMA foreign_keys = ON;",
         )
         .map_err(|e| format!("unable to create tables: {}", e))?;
     match command {
         Command::Action(subcommand) => match subcommand {
-            Subcommand::Add { description } => {
+            ActionSubcommand::Add { description } => {
                 connection
                     .execute(
                         "INSERT INTO actions VALUES(?1)",
@@ -57,7 +58,7 @@ fn run() -> Result<(), String> {
                     )
                     .map_err(|e| format!("unable to add action: {}", e))?;
             }
-            Subcommand::Remove { description } => {
+            ActionSubcommand::Remove { description } => {
                 connection
                     .execute(
                         "DELETE FROM actions WHERE description = ?1",
@@ -65,7 +66,7 @@ fn run() -> Result<(), String> {
                     )
                     .map_err(|e| format!("unable to remove action: {}", e))?;
             }
-            Subcommand::List => {
+            ActionSubcommand::List => {
                 let mut statement = connection
                     .prepare("SELECT * FROM actions")
                     .map_err(|e| format!("unable to prepare statement: {}", e))?;
@@ -84,15 +85,40 @@ fn run() -> Result<(), String> {
             }
         },
         Command::Goal(subcommand) => match subcommand {
-            Subcommand::Add { description } => {
-                connection
-                    .execute(
-                        "INSERT INTO goals VALUES(?1)",
-                        rusqlite::params![description],
-                    )
-                    .map_err(|e| format!("unable to add goal: {}", e))?;
+            GoalSubcommand::Add {
+                action,
+                description,
+            } => {
+                if let Some(action) = action {
+                    connection
+                        .execute(
+                            "INSERT INTO goals VALUES(?1, ?2)",
+                            rusqlite::params![description, action],
+                        )
+                        .map_err(|e| {
+                            if let rusqlite::Error::SqliteFailure(
+                                libsqlite3_sys::Error {
+                                    code: libsqlite3_sys::ErrorCode::ConstraintViolation,
+                                    ..
+                                },
+                                _,
+                            ) = e
+                            {
+                                "action does not exist".into()
+                            } else {
+                                format!("unable to add goal: {}", e)
+                            }
+                        })?;
+                } else {
+                    connection
+                        .execute(
+                            "INSERT INTO goals (description) VALUES(?1)",
+                            rusqlite::params![description],
+                        )
+                        .map_err(|e| format!("unable to add goal: {}", e))?;
+                }
             }
-            Subcommand::Remove { description } => {
+            GoalSubcommand::Remove { description } => {
                 connection
                     .execute(
                         "DELETE FROM goals WHERE description = ?1",
@@ -100,9 +126,9 @@ fn run() -> Result<(), String> {
                     )
                     .map_err(|e| format!("unable to remove goal: {}", e))?;
             }
-            Subcommand::List => {
+            GoalSubcommand::List => {
                 let mut statement = connection
-                    .prepare("SELECT * FROM goals")
+                    .prepare("SELECT * FROM goals WHERE action IS NULL")
                     .map_err(|e| format!("unable to prepare statement: {}", e))?;
                 let mut rows = statement
                     .query([])
@@ -133,7 +159,7 @@ fn parse_args() -> Result<Command, String> {
                         if args.is_empty() {
                             return Err("missing description".into());
                         }
-                        Ok(Command::Action(Subcommand::Add {
+                        Ok(Command::Action(ActionSubcommand::Add {
                             description: args.join(" "),
                         }))
                     }
@@ -142,11 +168,11 @@ fn parse_args() -> Result<Command, String> {
                         if args.is_empty() {
                             return Err("missing description".into());
                         }
-                        Ok(Command::Action(Subcommand::Remove {
+                        Ok(Command::Action(ActionSubcommand::Remove {
                             description: args.join(" "),
                         }))
                     }
-                    "ls" => Ok(Command::Action(Subcommand::List)),
+                    "ls" => Ok(Command::Action(ActionSubcommand::List)),
                     _ => Err(format!("no such subcommand: `{}`", subcommand)),
                 },
                 None => Err("missing subcommand".into()),
@@ -154,11 +180,20 @@ fn parse_args() -> Result<Command, String> {
             "goal" => match args.next() {
                 Some(subcommand) => match subcommand.as_str() {
                     "add" => {
-                        let args = args.collect::<Vec<_>>();
+                        let mut action = None;
+                        let mut args = args.collect::<Vec<_>>();
+                        if !args.is_empty() && args[0] == "--action" {
+                            args.remove(0);
+                            if args.is_empty() {
+                                return Err("missing action".into());
+                            }
+                            action = Some(args.remove(0));
+                        }
                         if args.is_empty() {
                             return Err("missing description".into());
                         }
-                        Ok(Command::Goal(Subcommand::Add {
+                        Ok(Command::Goal(GoalSubcommand::Add {
+                            action,
                             description: args.join(" "),
                         }))
                     }
@@ -167,11 +202,11 @@ fn parse_args() -> Result<Command, String> {
                         if args.is_empty() {
                             return Err("missing description".into());
                         }
-                        Ok(Command::Goal(Subcommand::Remove {
+                        Ok(Command::Goal(GoalSubcommand::Remove {
                             description: args.join(" "),
                         }))
                     }
-                    "ls" => Ok(Command::Goal(Subcommand::List)),
+                    "ls" => Ok(Command::Goal(GoalSubcommand::List)),
                     _ => Err(format!("no such subcommand: `{}`", subcommand)),
                 },
                 None => Err("missing subcommand".into()),
@@ -183,12 +218,23 @@ fn parse_args() -> Result<Command, String> {
 }
 
 enum Command {
-    Action(Subcommand),
-    Goal(Subcommand),
+    Action(ActionSubcommand),
+    Goal(GoalSubcommand),
 }
 
-enum Subcommand {
+enum ActionSubcommand {
     Add { description: String },
     Remove { description: String },
+    List,
+}
+
+enum GoalSubcommand {
+    Add {
+        action: Option<String>,
+        description: String,
+    },
+    Remove {
+        description: String,
+    },
     List,
 }

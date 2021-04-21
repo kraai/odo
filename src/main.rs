@@ -55,12 +55,16 @@ fn run() -> Result<(), String> {
                     .map_err(|e| format!("unable to add action: {}", e))?;
             }
             ActionSubcommand::Remove { description } => {
-                connection
+                if connection
                     .execute(
                         "DELETE FROM actions WHERE description = ?1",
                         rusqlite::params![description],
                     )
-                    .map_err(|e| format!("unable to remove action: {}", e))?;
+                    .map_err(|e| format!("unable to remove action: {}", e))?
+                    != 1
+                {
+                    return Err("action does not exist".into());
+                }
             }
             ActionSubcommand::List => {
                 let mut statement = connection
@@ -115,12 +119,16 @@ fn run() -> Result<(), String> {
                 }
             }
             GoalSubcommand::Remove { description } => {
-                connection
+                if connection
                     .execute(
                         "DELETE FROM goals WHERE description = ?1",
                         rusqlite::params![description],
                     )
-                    .map_err(|e| format!("unable to remove goal: {}", e))?;
+                    .map_err(|e| format!("unable to remove goal: {}", e))?
+                    != 1
+                {
+                    return Err("goal does not exist".into());
+                }
             }
             GoalSubcommand::List => {
                 let mut statement = connection

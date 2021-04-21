@@ -42,11 +42,7 @@ fn run() -> Result<(), String> {
     let connection = Connection::open(&database_path)
         .map_err(|e| format!("unable to open `{}`: {}", database_path.display(), e))?;
     connection
-        .execute_batch(
-            "CREATE TABLE IF NOT EXISTS actions (description PRIMARY KEY);
-             CREATE TABLE IF NOT EXISTS goals (description PRIMARY KEY, action TEXT REFERENCES actions (description) ON DELETE SET NULL);
-             PRAGMA foreign_keys = ON;",
-        )
+        .execute_batch(include_str!("initialize.sql"))
         .map_err(|e| format!("unable to create tables: {}", e))?;
     match command {
         Command::Action(subcommand) => match subcommand {

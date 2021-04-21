@@ -234,6 +234,19 @@ fn removes_action() {
 }
 
 #[test]
+fn fails_to_remove_nonexistent_action() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["action", "rm", "Read", "*Network", "Effect*."])
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr("odo: action does not exist\n");
+}
+
+#[test]
 fn reports_missing_goal_subcommand() {
     Command::cargo_bin("odo")
         .unwrap()
@@ -454,4 +467,17 @@ fn removes_goal() {
         .success()
         .stdout("")
         .stderr("");
+}
+
+#[test]
+fn fails_to_remove_nonexistent_goal() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "rm", "Read", "*Network", "Effect*."])
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr("odo: goal does not exist\n");
 }

@@ -334,7 +334,7 @@ fn reports_missing_goal_action() {
         .assert()
         .failure()
         .stdout("")
-        .stderr("odo: missing action\n");
+        .stderr("odo: option `--action` requires an argument\n");
 }
 
 #[test]

@@ -189,7 +189,7 @@ fn parse_args() -> Result<Command, String> {
                         if !args.is_empty() && args[0] == "--action" {
                             args.remove(0);
                             if args.is_empty() {
-                                return Err("missing action".into());
+                                return Err("option `--action` requires an argument".into());
                             }
                             action = Some(args.remove(0));
                         }

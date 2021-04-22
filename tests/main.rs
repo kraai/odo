@@ -57,7 +57,7 @@ impl CommandExt for Command {
 }
 
 #[test]
-fn reports_missing_command() {
+fn odo_reports_missing_command() {
     Command::cargo_bin("odo")
         .unwrap()
         .assert()
@@ -67,7 +67,7 @@ fn reports_missing_command() {
 }
 
 #[test]
-fn reports_no_such_command() {
+fn odo_reports_no_such_command() {
     Command::cargo_bin("odo")
         .unwrap()
         .arg("foo")
@@ -78,7 +78,7 @@ fn reports_no_such_command() {
 }
 
 #[test]
-fn reports_missing_action_subcommand() {
+fn odo_action_reports_missing_action_subcommand() {
     Command::cargo_bin("odo")
         .unwrap()
         .arg("action")
@@ -89,7 +89,7 @@ fn reports_missing_action_subcommand() {
 }
 
 #[test]
-fn reports_no_such_action_subcommand() {
+fn odo_action_reports_no_such_action_subcommand() {
     Command::cargo_bin("odo")
         .unwrap()
         .args(&["action", "foo"])
@@ -100,7 +100,7 @@ fn reports_no_such_action_subcommand() {
 }
 
 #[test]
-fn reports_missing_action_description() {
+fn odo_action_add_reports_missing_action_description() {
     Command::cargo_bin("odo")
         .unwrap()
         .args(&["action", "add"])
@@ -111,7 +111,7 @@ fn reports_missing_action_description() {
 }
 
 #[test]
-fn adds_action() {
+fn odo_action_add_adds_action() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -124,7 +124,7 @@ fn adds_action() {
 }
 
 #[test]
-fn creates_data_directory() {
+fn odo_action_add_creates_data_directory() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -147,7 +147,7 @@ fn creates_data_directory() {
 
 #[cfg(all(unix, not(target_os = "macos")))]
 #[test]
-fn creates_parent_directories_0o700() {
+fn odo_action_add_creates_parent_directories_0o700() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -171,7 +171,7 @@ fn creates_parent_directories_0o700() {
 }
 
 #[test]
-fn lists_no_actions() {
+fn odo_action_ls_lists_no_actions() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -184,7 +184,7 @@ fn lists_no_actions() {
 }
 
 #[test]
-fn lists_action() {
+fn odo_action_ls_lists_action() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -205,7 +205,7 @@ fn lists_action() {
 }
 
 #[test]
-fn removes_action() {
+fn odo_action_rm_removes_action() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -234,7 +234,7 @@ fn removes_action() {
 }
 
 #[test]
-fn fails_to_remove_nonexistent_action() {
+fn odo_action_rm_fails_to_remove_nonexistent_action() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -247,7 +247,7 @@ fn fails_to_remove_nonexistent_action() {
 }
 
 #[test]
-fn reports_missing_goal_subcommand() {
+fn odo_goal_reports_missing_goal_subcommand() {
     Command::cargo_bin("odo")
         .unwrap()
         .arg("goal")
@@ -258,7 +258,7 @@ fn reports_missing_goal_subcommand() {
 }
 
 #[test]
-fn reports_no_such_goal_subcommand() {
+fn odo_goal_reports_no_such_goal_subcommand() {
     Command::cargo_bin("odo")
         .unwrap()
         .args(&["goal", "foo"])
@@ -269,7 +269,7 @@ fn reports_no_such_goal_subcommand() {
 }
 
 #[test]
-fn reports_missing_goal_description() {
+fn odo_goal_add_reports_missing_goal_description() {
     Command::cargo_bin("odo")
         .unwrap()
         .args(&["goal", "add"])
@@ -280,7 +280,7 @@ fn reports_missing_goal_description() {
 }
 
 #[test]
-fn adds_goal() {
+fn odo_goal_add_adds_goal() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -293,7 +293,7 @@ fn adds_goal() {
 }
 
 #[test]
-fn lists_no_goals() {
+fn odo_goal_ls_lists_no_goals() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -306,7 +306,7 @@ fn lists_no_goals() {
 }
 
 #[test]
-fn lists_goal() {
+fn odo_goal_ls_lists_goal() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -327,7 +327,7 @@ fn lists_goal() {
 }
 
 #[test]
-fn reports_missing_goal_action() {
+fn odo_goal_add_reports_missing_goal_action() {
     Command::cargo_bin("odo")
         .unwrap()
         .args(&["goal", "add", "--action"])
@@ -338,7 +338,7 @@ fn reports_missing_goal_action() {
 }
 
 #[test]
-fn does_not_list_goal_with_action() {
+fn odo_goal_ls_does_not_list_goal_with_action() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -375,7 +375,7 @@ fn does_not_list_goal_with_action() {
 }
 
 #[test]
-fn does_not_add_goal_with_nonexistent_action() {
+fn odo_goal_add_does_not_add_goal_with_nonexistent_action() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -396,7 +396,7 @@ fn does_not_add_goal_with_nonexistent_action() {
 }
 
 #[test]
-fn removing_action_clears_goal_action() {
+fn odo_action_rm_removing_action_clears_goal_action() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -441,7 +441,7 @@ fn removing_action_clears_goal_action() {
 }
 
 #[test]
-fn removes_goal() {
+fn odo_goal_rm_removes_goal() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()
@@ -470,7 +470,7 @@ fn removes_goal() {
 }
 
 #[test]
-fn fails_to_remove_nonexistent_goal() {
+fn odo_goal_rm_fails_to_remove_nonexistent_goal() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
         .unwrap()

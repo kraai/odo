@@ -15,4 +15,3 @@
 
 CREATE TABLE IF NOT EXISTS actions (description PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS goals (description PRIMARY KEY, action TEXT REFERENCES actions (description) ON DELETE SET NULL);
-PRAGMA foreign_keys = ON;

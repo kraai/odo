@@ -41,8 +41,7 @@ fn run() -> Result<(), String> {
     let database_path = data_dir.join("odo.sqlite3");
     let connection = Connection::open(&database_path)
         .map_err(|e| format!("unable to open `{}`: {}", database_path.display(), e))?;
-    connection
-        .execute_batch(include_str!("initialize.sql"))
+    odo::initialize(&connection)
         .map_err(|e| format!("unable to initialize `{}`: {}", database_path.display(), e))?;
     match command {
         Command::Action(subcommand) => match subcommand {

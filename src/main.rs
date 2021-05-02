@@ -53,8 +53,8 @@ fn run() -> Result<(), String> {
         },
         Command::Goal(subcommand) => match subcommand {
             GoalSubcommand::Add {
-                action,
                 description,
+                action,
             } => odo::add_goal(&connection, description, action)?,
             GoalSubcommand::List => odo::list_goals(&connection, &mut io::stdout())?,
             GoalSubcommand::Remove { description } => odo::remove_goal(&connection, description)?,
@@ -145,8 +145,8 @@ enum ActionSubcommand {
 
 enum GoalSubcommand {
     Add {
-        action: Option<String>,
         description: String,
+        action: Option<String>,
     },
     List,
     Remove {

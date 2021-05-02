@@ -106,6 +106,26 @@ pub fn add_goal<T: AsRef<str>, U: AsRef<str>>(
     }
 }
 
+pub fn list_goals<T: Write>(connection: &Connection, writer: &mut T) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("SELECT description FROM goals WHERE action IS NULL")
+        .map_err(|e| format!("unable to prepare statement: {}", e))?;
+    let mut rows = statement
+        .query([])
+        .map_err(|e| format!("unable to execute statement: {}", e))?;
+    while let Some(row) = rows
+        .next()
+        .map_err(|e| format!("unable to read row: {}", e))?
+    {
+        let description: String = row
+            .get(0)
+            .map_err(|e| format!("unable to read description: {}", e))?;
+        writeln!(writer, "{}", description)
+            .map_err(|e| format!("unable to write description: {}", e))?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,7 +146,7 @@ mod tests {
     }
 
     #[test]
-    fn lists_nothing() {
+    fn lists_no_actions() {
         let connection = Connection::open_in_memory().unwrap();
         initialize(&connection).unwrap();
         let mut output = Vec::new();
@@ -265,5 +285,74 @@ mod tests {
             ),
             Err("action does not exist".to_string())
         );
+    }
+
+    #[test]
+    fn lists_no_goals() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        let mut output = Vec::new();
+        list_goals(&connection, &mut output).unwrap();
+        assert_eq!(String::from_utf8(output).unwrap(), "");
+    }
+
+    #[test]
+    fn lists_goal() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        connection
+            .execute(
+                "INSERT INTO goals (description) VALUES('Read *Network Effect*.')",
+                [],
+            )
+            .unwrap();
+        let mut output = Vec::new();
+        list_goals(&connection, &mut output).unwrap();
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "Read *Network Effect*.\n"
+        );
+    }
+
+    #[test]
+    fn lists_goals() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        connection
+            .execute(
+                "INSERT INTO goals (description) VALUES('Read *Network Effect*.')",
+                [],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO goals (description) VALUES('Read *What Were We Thinking*.')",
+                [],
+            )
+            .unwrap();
+        let mut output = Vec::new();
+        list_goals(&connection, &mut output).unwrap();
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "Read *Network Effect*.\nRead *What Were We Thinking*.\n"
+        );
+    }
+
+    #[test]
+    fn does_not_list_goal_with_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        connection
+            .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO goals VALUES('Read *Network Effect*.', 'Borrow *Network Effect*.')",
+                [],
+            )
+            .unwrap();
+        let mut output = Vec::new();
+        list_goals(&connection, &mut output).unwrap();
+        assert_eq!(String::from_utf8(output).unwrap(), "");
     }
 }

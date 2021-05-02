@@ -326,16 +326,3 @@ fn odo_goal_rm_removes_goal() {
         .stdout("")
         .stderr("");
 }
-
-#[test]
-fn odo_goal_rm_fails_to_remove_nonexistent_goal() {
-    let home_dir = TempHomeDir::new();
-    Command::cargo_bin("odo")
-        .unwrap()
-        .home_dir(home_dir.path())
-        .args(&["goal", "rm", "Read", "*Network", "Effect*."])
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: goal does not exist\n");
-}

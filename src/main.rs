@@ -48,16 +48,7 @@ fn run() -> Result<(), String> {
             ActionSubcommand::Add { description } => odo::add_action(&connection, description)?,
             ActionSubcommand::List => odo::list_actions(&connection, &mut io::stdout())?,
             ActionSubcommand::Remove { description } => {
-                if connection
-                    .execute(
-                        "DELETE FROM actions WHERE description = ?1",
-                        rusqlite::params![description],
-                    )
-                    .map_err(|e| format!("unable to remove action: {}", e))?
-                    != 1
-                {
-                    return Err("action does not exist".into());
-                }
+                odo::remove_action(&connection, description)?
             }
         },
         Command::Goal(subcommand) => match subcommand {

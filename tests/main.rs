@@ -221,64 +221,6 @@ fn odo_action_rm_removes_action() {
 }
 
 #[test]
-fn odo_action_rm_fails_to_remove_nonexistent_action() {
-    let home_dir = TempHomeDir::new();
-    Command::cargo_bin("odo")
-        .unwrap()
-        .home_dir(home_dir.path())
-        .args(&["action", "rm", "Read", "*Network", "Effect*."])
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: action does not exist\n");
-}
-
-#[test]
-fn odo_action_rm_removing_action_clears_goal_action() {
-    let home_dir = TempHomeDir::new();
-    Command::cargo_bin("odo")
-        .unwrap()
-        .home_dir(home_dir.path())
-        .args(&["action", "add", "Borrow", "*Network", "Effect*."])
-        .assert()
-        .success()
-        .stdout("")
-        .stderr("");
-    Command::cargo_bin("odo")
-        .unwrap()
-        .home_dir(home_dir.path())
-        .args(&[
-            "goal",
-            "add",
-            "--action",
-            "Borrow *Network Effect*.",
-            "Read",
-            "*Network",
-            "Effect*.",
-        ])
-        .assert()
-        .success()
-        .stdout("")
-        .stderr("");
-    Command::cargo_bin("odo")
-        .unwrap()
-        .home_dir(home_dir.path())
-        .args(&["action", "rm", "Borrow", "*Network", "Effect*."])
-        .assert()
-        .success()
-        .stdout("")
-        .stderr("");
-    Command::cargo_bin("odo")
-        .unwrap()
-        .home_dir(home_dir.path())
-        .args(&["goal", "ls"])
-        .assert()
-        .success()
-        .stdout("Read *Network Effect*.\n")
-        .stderr("");
-}
-
-#[test]
 fn odo_goal_reports_missing_goal_subcommand() {
     Command::cargo_bin("odo")
         .unwrap()

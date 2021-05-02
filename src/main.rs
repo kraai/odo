@@ -56,23 +56,7 @@ fn run() -> Result<(), String> {
                 action,
                 description,
             } => odo::add_goal(&connection, description, action)?,
-            GoalSubcommand::List => {
-                let mut statement = connection
-                    .prepare("SELECT * FROM goals WHERE action IS NULL")
-                    .map_err(|e| format!("unable to prepare statement: {}", e))?;
-                let mut rows = statement
-                    .query([])
-                    .map_err(|e| format!("unable to execute statement: {}", e))?;
-                while let Some(row) = rows
-                    .next()
-                    .map_err(|e| format!("unable to read row: {}", e))?
-                {
-                    let description: String = row
-                        .get(0)
-                        .map_err(|e| format!("unable to read description: {}", e))?;
-                    println!("{}", description);
-                }
-            }
+            GoalSubcommand::List => odo::list_goals(&connection, &mut io::stdout())?,
             GoalSubcommand::Remove { description } => {
                 if connection
                     .execute(

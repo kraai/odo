@@ -108,7 +108,7 @@ pub fn add_goal<T: AsRef<str>, U: AsRef<str>>(
 
 pub fn list_goals<T: Write>(connection: &Connection, writer: &mut T) -> Result<(), String> {
     let mut statement = connection
-        .prepare("SELECT * FROM goals WHERE action IS NULL")
+        .prepare("SELECT description FROM goals WHERE action IS NULL")
         .map_err(|e| format!("unable to prepare statement: {}", e))?;
     let mut rows = statement
         .query([])

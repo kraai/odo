@@ -222,12 +222,9 @@ mod tests {
         let connection = Connection::open_in_memory().unwrap();
         initialize(&connection).unwrap();
         add_goal::<&str, &str>(&connection, "Read *Network Effect*.", None).unwrap();
-        let (description, action) = connection
+        let (description, action): (String, Option<String>) = connection
             .query_row("SELECT * FROM goals", [], |row| {
-                Ok((
-                    row.get_unwrap::<usize, String>(0),
-                    row.get_unwrap::<usize, Option<String>>(1),
-                ))
+                Ok((row.get_unwrap(0), row.get_unwrap(1)))
             })
             .unwrap();
         assert_eq!(description, "Read *Network Effect*.");
@@ -247,12 +244,9 @@ mod tests {
             Some("Borrow *Network Effect*."),
         )
         .unwrap();
-        let (description, action) = connection
+        let (description, action): (String, Option<String>) = connection
             .query_row("SELECT * FROM goals", [], |row| {
-                Ok((
-                    row.get_unwrap::<usize, String>(0),
-                    row.get_unwrap::<usize, Option<String>>(1),
-                ))
+                Ok((row.get_unwrap(0), row.get_unwrap(1)))
             })
             .unwrap();
         assert_eq!(description, "Read *Network Effect*.");

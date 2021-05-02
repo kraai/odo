@@ -278,27 +278,6 @@ fn odo_goal_add_reports_missing_goal_action() {
 }
 
 #[test]
-fn odo_goal_add_does_not_add_goal_with_nonexistent_action() {
-    let home_dir = TempHomeDir::new();
-    Command::cargo_bin("odo")
-        .unwrap()
-        .home_dir(home_dir.path())
-        .args(&[
-            "goal",
-            "add",
-            "--action",
-            "Borrow *Network Effect*.",
-            "Read",
-            "*Network",
-            "Effect*.",
-        ])
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: action does not exist\n");
-}
-
-#[test]
 fn odo_goal_ls_lists_no_goals() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")

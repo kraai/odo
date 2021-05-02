@@ -55,9 +55,24 @@ pub fn list_actions<T: Write>(connection: &Connection, writer: &mut T) -> Result
     Ok(())
 }
 
+pub fn remove_action<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
+    if connection
+        .execute(
+            "DELETE FROM actions WHERE description = ?1",
+            rusqlite::params![description.as_ref()],
+        )
+        .map_err(|e| format!("unable to remove action: {}", e))?
+        != 1
+    {
+        return Err("action does not exist".into());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rusqlite::Error;
 
     #[test]
     fn adds_action() {
@@ -115,6 +130,53 @@ mod tests {
         assert_eq!(
             String::from_utf8(output).unwrap(),
             "Read *Network Effect*.\nRead *What Were We Thinking*.\n"
+        );
+    }
+
+    #[test]
+    fn removes_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        connection
+            .execute("INSERT INTO actions VALUES('Read *Network Effect*.')", [])
+            .unwrap();
+        remove_action(&connection, "Read *Network Effect*.").unwrap();
+        assert_eq!(
+            connection.query_row("SELECT * FROM actions", [], |_| Ok(())),
+            Err(Error::QueryReturnedNoRows)
+        );
+    }
+
+    #[test]
+    fn fails_to_remove_nonexistent_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        assert_eq!(
+            remove_action(&connection, "Read *Network Effect*."),
+            Err("action does not exist".to_string())
+        );
+    }
+
+    #[test]
+    fn clears_goal_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        connection
+            .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO goals VALUES('Read *Network Effect*.', 'Borrow *Network Effect*.')",
+                [],
+            )
+            .unwrap();
+        remove_action(&connection, "Borrow *Network Effect*.").unwrap();
+        assert_eq!(
+            connection
+                .query_row("SELECT action FROM goals", [], |row| row
+                    .get::<usize, Option<String>>(0))
+                .unwrap(),
+            None
         );
     }
 }

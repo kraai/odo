@@ -47,7 +47,7 @@ fn run() -> Result<(), String> {
     match command {
         Command::Action(subcommand) => match subcommand {
             ActionSubcommand::Add { description } => odo::add_action(&connection, description)?,
-            ActionSubcommand::List => odo::list_actions(&connection, &mut io::stdout().lock())?,
+            ActionSubcommand::List => odo::list_actions(&connection, &mut io::stdout())?,
             ActionSubcommand::Remove { description } => {
                 if connection
                     .execute(

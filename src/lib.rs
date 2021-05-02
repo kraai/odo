@@ -14,6 +14,7 @@
 // see <https://www.gnu.org/licenses/>.
 
 use rusqlite::Connection;
+use std::io::Write;
 
 pub fn add_action<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
     connection
@@ -23,6 +24,26 @@ pub fn add_action<T: AsRef<str>>(connection: &Connection, description: T) -> Res
         )
         .map(|_| ())
         .map_err(|e| format!("unable to add action: {}", e))
+}
+
+pub fn list_actions<T: Write>(connection: &Connection, writer: &mut T) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("SELECT * FROM actions")
+        .map_err(|e| format!("unable to prepare statement: {}", e))?;
+    let mut rows = statement
+        .query([])
+        .map_err(|e| format!("unable to execute statement: {}", e))?;
+    while let Some(row) = rows
+        .next()
+        .map_err(|e| format!("unable to read row: {}", e))?
+    {
+        let description: String = row
+            .get(0)
+            .map_err(|e| format!("unable to read description: {}", e))?;
+        writeln!(writer, "{}", description)
+            .map_err(|e| format!("unable to write description: {}", e))?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -42,6 +63,57 @@ mod tests {
                     .get::<usize, String>(0))
                 .unwrap(),
             "Read *Network Effect*."
+        );
+    }
+
+    #[test]
+    fn list_nothing() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(include_str!("initialize.sql"))
+            .unwrap();
+        let mut output = Vec::new();
+        list_actions(&connection, &mut output).unwrap();
+        assert_eq!(String::from_utf8(output).unwrap(), "");
+    }
+
+    #[test]
+    fn lists_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(include_str!("initialize.sql"))
+            .unwrap();
+        connection
+            .execute("INSERT INTO actions VALUES('Read *Network Effect*.')", [])
+            .unwrap();
+        let mut output = Vec::new();
+        list_actions(&connection, &mut output).unwrap();
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "Read *Network Effect*.\n"
+        );
+    }
+
+    #[test]
+    fn lists_actions() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(include_str!("initialize.sql"))
+            .unwrap();
+        connection
+            .execute("INSERT INTO actions VALUES('Read *Network Effect*.')", [])
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO actions VALUES('Read *What Were We Thinking*.')",
+                [],
+            )
+            .unwrap();
+        let mut output = Vec::new();
+        list_actions(&connection, &mut output).unwrap();
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "Read *Network Effect*.\nRead *What Were We Thinking*.\n"
         );
     }
 }

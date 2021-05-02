@@ -17,7 +17,7 @@ use directories::ProjectDirs;
 use rusqlite::Connection;
 #[cfg(all(unix, not(target_os = "macos")))]
 use std::os::unix::fs::DirBuilderExt;
-use std::{env, fs::DirBuilder, process};
+use std::{env, fs::DirBuilder, io, process};
 
 fn main() {
     if let Err(e) = run() {
@@ -47,23 +47,7 @@ fn run() -> Result<(), String> {
     match command {
         Command::Action(subcommand) => match subcommand {
             ActionSubcommand::Add { description } => odo::add_action(&connection, description)?,
-            ActionSubcommand::List => {
-                let mut statement = connection
-                    .prepare("SELECT * FROM actions")
-                    .map_err(|e| format!("unable to prepare statement: {}", e))?;
-                let mut rows = statement
-                    .query([])
-                    .map_err(|e| format!("unable to execute statement: {}", e))?;
-                while let Some(row) = rows
-                    .next()
-                    .map_err(|e| format!("unable to read row: {}", e))?
-                {
-                    let description: String = row
-                        .get(0)
-                        .map_err(|e| format!("unable to read description: {}", e))?;
-                    println!("{}", description);
-                }
-            }
+            ActionSubcommand::List => odo::list_actions(&connection, &mut io::stdout().lock())?,
             ActionSubcommand::Remove { description } => {
                 if connection
                     .execute(

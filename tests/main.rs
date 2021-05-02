@@ -171,19 +171,6 @@ fn odo_action_add_creates_parent_directories_0o700() {
 }
 
 #[test]
-fn odo_action_ls_lists_no_actions() {
-    let home_dir = TempHomeDir::new();
-    Command::cargo_bin("odo")
-        .unwrap()
-        .home_dir(home_dir.path())
-        .args(&["action", "ls"])
-        .assert()
-        .success()
-        .stdout("")
-        .stderr("");
-}
-
-#[test]
 fn odo_action_ls_lists_action() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")

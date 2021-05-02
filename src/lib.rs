@@ -67,7 +67,7 @@ mod tests {
     }
 
     #[test]
-    fn list_nothing() {
+    fn lists_nothing() {
         let connection = Connection::open_in_memory().unwrap();
         connection
             .execute_batch(include_str!("initialize.sql"))

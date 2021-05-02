@@ -55,36 +55,7 @@ fn run() -> Result<(), String> {
             GoalSubcommand::Add {
                 action,
                 description,
-            } => {
-                if let Some(action) = action {
-                    connection
-                        .execute(
-                            "INSERT INTO goals VALUES(?1, ?2)",
-                            rusqlite::params![description, action],
-                        )
-                        .map_err(|e| {
-                            if let rusqlite::Error::SqliteFailure(
-                                libsqlite3_sys::Error {
-                                    code: libsqlite3_sys::ErrorCode::ConstraintViolation,
-                                    ..
-                                },
-                                _,
-                            ) = e
-                            {
-                                "action does not exist".into()
-                            } else {
-                                format!("unable to add goal: {}", e)
-                            }
-                        })?;
-                } else {
-                    connection
-                        .execute(
-                            "INSERT INTO goals (description) VALUES(?1)",
-                            rusqlite::params![description],
-                        )
-                        .map_err(|e| format!("unable to add goal: {}", e))?;
-                }
-            }
+            } => odo::add_goal(&connection, description, action)?,
             GoalSubcommand::List => {
                 let mut statement = connection
                     .prepare("SELECT * FROM goals WHERE action IS NULL")

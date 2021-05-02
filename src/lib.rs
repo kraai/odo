@@ -69,6 +69,43 @@ pub fn remove_action<T: AsRef<str>>(connection: &Connection, description: T) -> 
     }
 }
 
+pub fn add_goal<T: AsRef<str>, U: AsRef<str>>(
+    connection: &Connection,
+    description: T,
+    action: Option<U>,
+) -> Result<(), String> {
+    if let Some(action) = action {
+        connection
+            .execute(
+                "INSERT INTO goals VALUES(?1, ?2)",
+                rusqlite::params![description.as_ref(), action.as_ref()],
+            )
+            .map(|_| ())
+            .map_err(|e| {
+                if let rusqlite::Error::SqliteFailure(
+                    libsqlite3_sys::Error {
+                        code: libsqlite3_sys::ErrorCode::ConstraintViolation,
+                        ..
+                    },
+                    _,
+                ) = e
+                {
+                    "action does not exist".into()
+                } else {
+                    format!("unable to add goal: {}", e)
+                }
+            })
+    } else {
+        connection
+            .execute(
+                "INSERT INTO goals (description) VALUES(?1)",
+                rusqlite::params![description.as_ref()],
+            )
+            .map(|_| ())
+            .map_err(|e| format!("unable to add goal: {}", e))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,6 +214,56 @@ mod tests {
                     .get::<usize, Option<String>>(0))
                 .unwrap(),
             None
+        );
+    }
+
+    #[test]
+    fn adds_goal() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        add_goal::<&str, &str>(&connection, "Read *Network Effect*.", None).unwrap();
+        let (description, action): (String, Option<String>) = connection
+            .query_row("SELECT * FROM goals", [], |row| {
+                Ok((row.get_unwrap(0), row.get_unwrap(1)))
+            })
+            .unwrap();
+        assert_eq!(description, "Read *Network Effect*.");
+        assert_eq!(action, None);
+    }
+
+    #[test]
+    fn adds_goal_with_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        connection
+            .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
+            .unwrap();
+        add_goal(
+            &connection,
+            "Read *Network Effect*.",
+            Some("Borrow *Network Effect*."),
+        )
+        .unwrap();
+        let (description, action): (String, Option<String>) = connection
+            .query_row("SELECT * FROM goals", [], |row| {
+                Ok((row.get_unwrap(0), row.get_unwrap(1)))
+            })
+            .unwrap();
+        assert_eq!(description, "Read *Network Effect*.");
+        assert_eq!(action, Some("Borrow *Network Effect*.".to_string()));
+    }
+
+    #[test]
+    fn fails_to_add_goal_with_nonexistent_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        assert_eq!(
+            add_goal(
+                &connection,
+                "Read *Network Effect*.",
+                Some("Borrow *Network Effect*."),
+            ),
+            Err("action does not exist".to_string())
         );
     }
 }

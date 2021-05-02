@@ -56,17 +56,17 @@ pub fn list_actions<T: Write>(connection: &Connection, writer: &mut T) -> Result
 }
 
 pub fn remove_action<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
-    if connection
+    match connection
         .execute(
             "DELETE FROM actions WHERE description = ?1",
             rusqlite::params![description.as_ref()],
         )
         .map_err(|e| format!("unable to remove action: {}", e))?
-        != 1
     {
-        return Err("action does not exist".into());
+        0 => Err("action does not exist".into()),
+        1 => Ok(()),
+        _ => unreachable!(),
     }
-    Ok(())
 }
 
 #[cfg(test)]

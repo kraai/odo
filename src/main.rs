@@ -46,14 +46,7 @@ fn run() -> Result<(), String> {
         .map_err(|e| format!("unable to initialize `{}`: {}", database_path.display(), e))?;
     match command {
         Command::Action(subcommand) => match subcommand {
-            ActionSubcommand::Add { description } => {
-                connection
-                    .execute(
-                        "INSERT INTO actions VALUES(?1)",
-                        rusqlite::params![description],
-                    )
-                    .map_err(|e| format!("unable to add action: {}", e))?;
-            }
+            ActionSubcommand::Add { description } => odo::add_action(&connection, description)?,
             ActionSubcommand::List => {
                 let mut statement = connection
                     .prepare("SELECT * FROM actions")

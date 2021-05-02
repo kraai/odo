@@ -16,6 +16,12 @@
 use rusqlite::Connection;
 use std::io::Write;
 
+pub fn initialize(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute_batch(include_str!("initialize.sql"))
+        .map_err(|e| e.to_string())
+}
+
 pub fn add_action<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
     connection
         .execute(
@@ -53,9 +59,7 @@ mod tests {
     #[test]
     fn adds_action() {
         let connection = Connection::open_in_memory().unwrap();
-        connection
-            .execute_batch(include_str!("initialize.sql"))
-            .unwrap();
+        initialize(&connection).unwrap();
         add_action(&connection, "Read *Network Effect*.").unwrap();
         assert_eq!(
             connection
@@ -69,9 +73,7 @@ mod tests {
     #[test]
     fn lists_nothing() {
         let connection = Connection::open_in_memory().unwrap();
-        connection
-            .execute_batch(include_str!("initialize.sql"))
-            .unwrap();
+        initialize(&connection).unwrap();
         let mut output = Vec::new();
         list_actions(&connection, &mut output).unwrap();
         assert_eq!(String::from_utf8(output).unwrap(), "");
@@ -80,9 +82,7 @@ mod tests {
     #[test]
     fn lists_action() {
         let connection = Connection::open_in_memory().unwrap();
-        connection
-            .execute_batch(include_str!("initialize.sql"))
-            .unwrap();
+        initialize(&connection).unwrap();
         connection
             .execute("INSERT INTO actions VALUES('Read *Network Effect*.')", [])
             .unwrap();
@@ -97,9 +97,7 @@ mod tests {
     #[test]
     fn lists_actions() {
         let connection = Connection::open_in_memory().unwrap();
-        connection
-            .execute_batch(include_str!("initialize.sql"))
-            .unwrap();
+        initialize(&connection).unwrap();
         connection
             .execute("INSERT INTO actions VALUES('Read *Network Effect*.')", [])
             .unwrap();

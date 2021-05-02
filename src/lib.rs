@@ -13,10 +13,13 @@
 // You should have received a copy of the GNU Affero General Public License along with odo.  If not,
 // see <https://www.gnu.org/licenses/>.
 
-use rusqlite::Connection;
+use rusqlite::{config::DbConfig, Connection};
 use std::io::Write;
 
 pub fn initialize(connection: &Connection) -> Result<(), String> {
+    connection
+        .set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_FKEY, true)
+        .map_err(|e| e.to_string())?;
     connection
         .execute_batch(include_str!("initialize.sql"))
         .map_err(|e| e.to_string())

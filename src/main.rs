@@ -57,18 +57,7 @@ fn run() -> Result<(), String> {
                 description,
             } => odo::add_goal(&connection, description, action)?,
             GoalSubcommand::List => odo::list_goals(&connection, &mut io::stdout())?,
-            GoalSubcommand::Remove { description } => {
-                if connection
-                    .execute(
-                        "DELETE FROM goals WHERE description = ?1",
-                        rusqlite::params![description],
-                    )
-                    .map_err(|e| format!("unable to remove goal: {}", e))?
-                    != 1
-                {
-                    return Err("goal does not exist".into());
-                }
-            }
+            GoalSubcommand::Remove { description } => odo::remove_goal(&connection, description)?,
         },
     }
     Ok(())

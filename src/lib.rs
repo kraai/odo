@@ -126,6 +126,20 @@ pub fn list_goals<T: Write>(connection: &Connection, writer: &mut T) -> Result<(
     Ok(())
 }
 
+pub fn remove_goal<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
+    match connection
+        .execute(
+            "DELETE FROM goals WHERE description = ?1",
+            rusqlite::params![description.as_ref()],
+        )
+        .map_err(|e| format!("unable to remove goal: {}", e))?
+    {
+        0 => Err("goal does not exist".into()),
+        1 => Ok(()),
+        _ => unreachable!(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -354,5 +368,32 @@ mod tests {
         let mut output = Vec::new();
         list_goals(&connection, &mut output).unwrap();
         assert_eq!(String::from_utf8(output).unwrap(), "");
+    }
+
+    #[test]
+    fn removes_goal() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        connection
+            .execute(
+                "INSERT INTO goals (description) VALUES('Read *Network Effect*.')",
+                [],
+            )
+            .unwrap();
+        remove_goal(&connection, "Read *Network Effect*.").unwrap();
+        assert_eq!(
+            connection.query_row("SELECT * FROM goals", [], |_| Ok(())),
+            Err(Error::QueryReturnedNoRows)
+        );
+    }
+
+    #[test]
+    fn fails_to_remove_nonexistent_goal() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        assert_eq!(
+            remove_goal(&connection, "Read *Network Effect*."),
+            Err("goal does not exist".to_string())
+        );
     }
 }

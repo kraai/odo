@@ -13,10 +13,143 @@
 // You should have received a copy of the GNU Affero General Public License along with odo.  If not,
 // see <https://www.gnu.org/licenses/>.
 
+use directories::ProjectDirs;
 use rusqlite::{config::DbConfig, Connection};
-use std::io::Write;
+#[cfg(all(unix, not(target_os = "macos")))]
+use std::os::unix::fs::DirBuilderExt;
+use std::{
+    env,
+    fs::DirBuilder,
+    io::{self, Write},
+};
 
-pub fn initialize(connection: &Connection) -> Result<(), String> {
+pub fn run() -> Result<(), String> {
+    let command = parse_args()?;
+    let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
+        .ok_or("unable to determine project directories")?;
+    let data_dir = project_dirs.data_dir();
+    let mut builder = DirBuilder::new();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    builder.mode(0o700);
+    builder
+        .recursive(true)
+        .create(data_dir)
+        .map_err(|e| format!("unable to create `{}`: {}", data_dir.display(), e))?;
+    let database_path = data_dir.join("odo.sqlite3");
+    let connection = Connection::open(&database_path)
+        .map_err(|e| format!("unable to open `{}`: {}", database_path.display(), e))?;
+    initialize(&connection)
+        .map_err(|e| format!("unable to initialize `{}`: {}", database_path.display(), e))?;
+    match command {
+        Command::Action(subcommand) => match subcommand {
+            ActionSubcommand::Add { description } => add_action(&connection, description)?,
+            ActionSubcommand::List => list_actions(&connection, &mut io::stdout())?,
+            ActionSubcommand::Remove { description } => remove_action(&connection, description)?,
+        },
+        Command::Goal(subcommand) => match subcommand {
+            GoalSubcommand::Add {
+                description,
+                action,
+            } => add_goal(&connection, description, action)?,
+            GoalSubcommand::List => list_goals(&connection, &mut io::stdout())?,
+            GoalSubcommand::Remove { description } => remove_goal(&connection, description)?,
+        },
+    }
+    Ok(())
+}
+
+fn parse_args() -> Result<Command, String> {
+    let mut args = env::args().skip(1);
+    match args.next() {
+        Some(command) => match command.as_str() {
+            "action" => match args.next() {
+                Some(subcommand) => match subcommand.as_str() {
+                    "add" => {
+                        let args = args.collect::<Vec<_>>();
+                        if args.is_empty() {
+                            return Err("missing description".into());
+                        }
+                        Ok(Command::Action(ActionSubcommand::Add {
+                            description: args.join(" "),
+                        }))
+                    }
+                    "ls" => Ok(Command::Action(ActionSubcommand::List)),
+                    "rm" => {
+                        let args = args.collect::<Vec<_>>();
+                        if args.is_empty() {
+                            return Err("missing description".into());
+                        }
+                        Ok(Command::Action(ActionSubcommand::Remove {
+                            description: args.join(" "),
+                        }))
+                    }
+                    _ => Err(format!("no such subcommand: `{}`", subcommand)),
+                },
+                None => Err("missing subcommand".into()),
+            },
+            "goal" => match args.next() {
+                Some(subcommand) => match subcommand.as_str() {
+                    "add" => {
+                        let mut action = None;
+                        let mut args = args.collect::<Vec<_>>();
+                        if !args.is_empty() && args[0] == "--action" {
+                            args.remove(0);
+                            if args.is_empty() {
+                                return Err("option `--action` requires an argument".into());
+                            }
+                            action = Some(args.remove(0));
+                        }
+                        if args.is_empty() {
+                            return Err("missing description".into());
+                        }
+                        Ok(Command::Goal(GoalSubcommand::Add {
+                            action,
+                            description: args.join(" "),
+                        }))
+                    }
+                    "ls" => Ok(Command::Goal(GoalSubcommand::List)),
+                    "rm" => {
+                        let args = args.collect::<Vec<_>>();
+                        if args.is_empty() {
+                            return Err("missing description".into());
+                        }
+                        Ok(Command::Goal(GoalSubcommand::Remove {
+                            description: args.join(" "),
+                        }))
+                    }
+                    _ => Err(format!("no such subcommand: `{}`", subcommand)),
+                },
+                None => Err("missing subcommand".into()),
+            },
+            _ => Err(format!("no such command: `{}`", command)),
+        },
+        None => Err("missing command".into()),
+    }
+}
+
+enum Command {
+    Action(ActionSubcommand),
+    Goal(GoalSubcommand),
+}
+
+enum ActionSubcommand {
+    Add { description: String },
+    List,
+    Remove { description: String },
+}
+
+enum GoalSubcommand {
+    Add {
+        description: String,
+        action: Option<String>,
+    },
+    List,
+    Remove {
+        description: String,
+    },
+}
+
+fn initialize(connection: &Connection) -> Result<(), String> {
     connection
         .set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_FKEY, true)
         .map_err(|e| e.to_string())?;
@@ -25,7 +158,7 @@ pub fn initialize(connection: &Connection) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-pub fn add_action<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
+fn add_action<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
     connection
         .execute(
             "INSERT INTO actions VALUES(?1)",
@@ -35,7 +168,7 @@ pub fn add_action<T: AsRef<str>>(connection: &Connection, description: T) -> Res
         .map_err(|e| format!("unable to add action: {}", e))
 }
 
-pub fn list_actions<T: Write>(connection: &Connection, writer: &mut T) -> Result<(), String> {
+fn list_actions<T: Write>(connection: &Connection, writer: &mut T) -> Result<(), String> {
     let mut statement = connection
         .prepare("SELECT * FROM actions")
         .map_err(|e| format!("unable to prepare statement: {}", e))?;
@@ -55,7 +188,7 @@ pub fn list_actions<T: Write>(connection: &Connection, writer: &mut T) -> Result
     Ok(())
 }
 
-pub fn remove_action<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
+fn remove_action<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
     match connection
         .execute(
             "DELETE FROM actions WHERE description = ?1",
@@ -69,7 +202,7 @@ pub fn remove_action<T: AsRef<str>>(connection: &Connection, description: T) -> 
     }
 }
 
-pub fn add_goal<T: AsRef<str>, U: AsRef<str>>(
+fn add_goal<T: AsRef<str>, U: AsRef<str>>(
     connection: &Connection,
     description: T,
     action: Option<U>,
@@ -106,7 +239,7 @@ pub fn add_goal<T: AsRef<str>, U: AsRef<str>>(
     }
 }
 
-pub fn list_goals<T: Write>(connection: &Connection, writer: &mut T) -> Result<(), String> {
+fn list_goals<T: Write>(connection: &Connection, writer: &mut T) -> Result<(), String> {
     let mut statement = connection
         .prepare("SELECT description FROM goals WHERE action IS NULL")
         .map_err(|e| format!("unable to prepare statement: {}", e))?;
@@ -126,7 +259,7 @@ pub fn list_goals<T: Write>(connection: &Connection, writer: &mut T) -> Result<(
     Ok(())
 }
 
-pub fn remove_goal<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
+fn remove_goal<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
     match connection
         .execute(
             "DELETE FROM goals WHERE description = ?1",

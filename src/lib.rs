@@ -18,13 +18,12 @@ use rusqlite::{config::DbConfig, Connection};
 #[cfg(all(unix, not(target_os = "macos")))]
 use std::os::unix::fs::DirBuilderExt;
 use std::{
-    env,
     fs::DirBuilder,
     io::{self, Write},
 };
 
-pub fn run() -> Result<(), String> {
-    let command = parse_args()?;
+pub fn run<T: Iterator<Item = String>>(args: T) -> Result<(), String> {
+    let command = parse_args(args)?;
     let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
         .ok_or("unable to determine project directories")?;
     let data_dir = project_dirs.data_dir();
@@ -58,8 +57,7 @@ pub fn run() -> Result<(), String> {
     Ok(())
 }
 
-fn parse_args() -> Result<Command, String> {
-    let mut args = env::args().skip(1);
+fn parse_args<T: Iterator<Item = String>>(mut args: T) -> Result<Command, String> {
     match args.next() {
         Some(command) => match command.as_str() {
             "action" => match args.next() {

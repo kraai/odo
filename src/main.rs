@@ -13,10 +13,10 @@
 // You should have received a copy of the GNU Affero General Public License along with odo.  If not,
 // see <https://www.gnu.org/licenses/>.
 
-use std::process;
+use std::{env, process};
 
 fn main() {
-    if let Err(e) = odo::run() {
+    if let Err(e) = odo::run(env::args().skip(1)) {
         eprintln!("odo: {}", e);
         process::exit(1);
     }

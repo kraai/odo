@@ -331,14 +331,6 @@ mod tests {
     }
 
     #[test]
-    fn reports_missing_action_rm_description() {
-        assert_eq!(
-            parse_args(IntoIter::new(["action".to_string(), "rm".to_string()])),
-            Err("missing description".to_string())
-        );
-    }
-
-    #[test]
     fn reports_extra_action_ls_argument() {
         assert_eq!(
             parse_args(IntoIter::new([
@@ -347,6 +339,14 @@ mod tests {
                 "foo".to_string()
             ])),
             Err("extra argument: `foo`".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_missing_action_rm_description() {
+        assert_eq!(
+            parse_args(IntoIter::new(["action".to_string(), "rm".to_string()])),
+            Err("missing description".to_string())
         );
     }
 

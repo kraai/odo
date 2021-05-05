@@ -313,9 +313,17 @@ mod tests {
     }
 
     #[test]
-    fn reports_missing_action_description() {
+    fn reports_missing_action_add_description() {
         assert_eq!(
             parse_args(IntoIter::new(["action".to_string(), "add".to_string()])),
+            Err("missing description".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_missing_action_rm_description() {
+        assert_eq!(
+            parse_args(IntoIter::new(["action".to_string(), "rm".to_string()])),
             Err("missing description".to_string())
         );
     }
@@ -337,9 +345,17 @@ mod tests {
     }
 
     #[test]
-    fn reports_missing_goal_description() {
+    fn reports_missing_goal_add_description() {
         assert_eq!(
             parse_args(IntoIter::new(["goal".to_string(), "add".to_string()])),
+            Err("missing description".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_missing_goal_rm_description() {
+        assert_eq!(
+            parse_args(IntoIter::new(["goal".to_string(), "rm".to_string()])),
             Err("missing description".to_string())
         );
     }

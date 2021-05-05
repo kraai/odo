@@ -375,6 +375,18 @@ mod tests {
     }
 
     #[test]
+    fn reports_missing_goal_action() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "goal".to_string(),
+                "add".to_string(),
+                "--action".to_string()
+            ])),
+            Err("option `--action` requires an argument".to_string())
+        );
+    }
+
+    #[test]
     fn reports_extra_goal_ls_argument() {
         assert_eq!(
             parse_args(IntoIter::new([
@@ -391,18 +403,6 @@ mod tests {
         assert_eq!(
             parse_args(IntoIter::new(["goal".to_string(), "rm".to_string()])),
             Err("missing description".to_string())
-        );
-    }
-
-    #[test]
-    fn reports_missing_goal_action() {
-        assert_eq!(
-            parse_args(IntoIter::new([
-                "goal".to_string(),
-                "add".to_string(),
-                "--action".to_string()
-            ])),
-            Err("option `--action` requires an argument".to_string())
         );
     }
 

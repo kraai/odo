@@ -125,17 +125,20 @@ fn parse_args<T: Iterator<Item = String>>(mut args: T) -> Result<Command, String
     }
 }
 
+#[derive(Debug, PartialEq)]
 enum Command {
     Action(ActionSubcommand),
     Goal(GoalSubcommand),
 }
 
+#[derive(Debug, PartialEq)]
 enum ActionSubcommand {
     Add { description: String },
     List,
     Remove { description: String },
 }
 
+#[derive(Debug, PartialEq)]
 enum GoalSubcommand {
     Add {
         description: String,
@@ -275,6 +278,83 @@ fn remove_goal<T: AsRef<str>>(connection: &Connection, description: T) -> Result
 mod tests {
     use super::*;
     use rusqlite::Error;
+    use std::array::IntoIter;
+
+    #[test]
+    fn reports_missing_command() {
+        assert_eq!(
+            parse_args(IntoIter::new([])),
+            Err("missing command".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_no_such_command() {
+        assert_eq!(
+            parse_args(IntoIter::new(["foo".to_string()])),
+            Err("no such command: `foo`".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_missing_action_subcommand() {
+        assert_eq!(
+            parse_args(IntoIter::new(["action".to_string()])),
+            Err("missing subcommand".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_no_such_action_subcommand() {
+        assert_eq!(
+            parse_args(IntoIter::new(["action".to_string(), "foo".to_string()])),
+            Err("no such subcommand: `foo`".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_missing_action_description() {
+        assert_eq!(
+            parse_args(IntoIter::new(["action".to_string(), "add".to_string()])),
+            Err("missing description".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_missing_goal_subcommand() {
+        assert_eq!(
+            parse_args(IntoIter::new(["goal".to_string()])),
+            Err("missing subcommand".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_no_such_goal_subcommand() {
+        assert_eq!(
+            parse_args(IntoIter::new(["goal".to_string(), "foo".to_string()])),
+            Err("no such subcommand: `foo`".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_missing_goal_description() {
+        assert_eq!(
+            parse_args(IntoIter::new(["goal".to_string(), "add".to_string()])),
+            Err("missing description".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_missing_goal_action() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "goal".to_string(),
+                "add".to_string(),
+                "--action".to_string()
+            ])),
+            Err("option `--action` requires an argument".to_string())
+        );
+    }
 
     #[test]
     fn adds_action() {

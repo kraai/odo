@@ -71,7 +71,12 @@ fn parse_args<T: Iterator<Item = String>>(mut args: T) -> Result<Command, String
                             description: args.join(" "),
                         }))
                     }
-                    "ls" => Ok(Command::Action(ActionSubcommand::List)),
+                    "ls" => {
+                        if let Some(arg) = args.next() {
+                            return Err(format!("extra argument: `{}`", arg));
+                        }
+                        Ok(Command::Action(ActionSubcommand::List))
+                    }
                     "rm" => {
                         let args = args.collect::<Vec<_>>();
                         if args.is_empty() {
@@ -105,7 +110,12 @@ fn parse_args<T: Iterator<Item = String>>(mut args: T) -> Result<Command, String
                             description: args.join(" "),
                         }))
                     }
-                    "ls" => Ok(Command::Goal(GoalSubcommand::List)),
+                    "ls" => {
+                        if let Some(arg) = args.next() {
+                            return Err(format!("extra argument: `{}`", arg));
+                        }
+                        Ok(Command::Goal(GoalSubcommand::List))
+                    }
                     "rm" => {
                         let args = args.collect::<Vec<_>>();
                         if args.is_empty() {
@@ -329,6 +339,18 @@ mod tests {
     }
 
     #[test]
+    fn reports_extra_action_ls_argument() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "action".to_string(),
+                "ls".to_string(),
+                "foo".to_string()
+            ])),
+            Err("extra argument: `foo`".to_string())
+        );
+    }
+
+    #[test]
     fn reports_missing_goal_subcommand() {
         assert_eq!(
             parse_args(IntoIter::new(["goal".to_string()])),
@@ -349,6 +371,18 @@ mod tests {
         assert_eq!(
             parse_args(IntoIter::new(["goal".to_string(), "add".to_string()])),
             Err("missing description".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_extra_goal_ls_argument() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "goal".to_string(),
+                "ls".to_string(),
+                "foo".to_string()
+            ])),
+            Err("extra argument: `foo`".to_string())
         );
     }
 

@@ -57,60 +57,6 @@ impl CommandExt for Command {
 }
 
 #[test]
-fn odo_reports_missing_command() {
-    Command::cargo_bin("odo")
-        .unwrap()
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: missing command\n");
-}
-
-#[test]
-fn odo_reports_no_such_command() {
-    Command::cargo_bin("odo")
-        .unwrap()
-        .arg("foo")
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: no such command: `foo`\n");
-}
-
-#[test]
-fn odo_action_reports_missing_action_subcommand() {
-    Command::cargo_bin("odo")
-        .unwrap()
-        .arg("action")
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: missing subcommand\n");
-}
-
-#[test]
-fn odo_action_reports_no_such_action_subcommand() {
-    Command::cargo_bin("odo")
-        .unwrap()
-        .args(&["action", "foo"])
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: no such subcommand: `foo`\n");
-}
-
-#[test]
-fn odo_action_add_reports_missing_action_description() {
-    Command::cargo_bin("odo")
-        .unwrap()
-        .args(&["action", "add"])
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: missing description\n");
-}
-
-#[test]
 fn odo_action_add_adds_action() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
@@ -221,39 +167,6 @@ fn odo_action_rm_removes_action() {
 }
 
 #[test]
-fn odo_goal_reports_missing_goal_subcommand() {
-    Command::cargo_bin("odo")
-        .unwrap()
-        .arg("goal")
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: missing subcommand\n");
-}
-
-#[test]
-fn odo_goal_reports_no_such_goal_subcommand() {
-    Command::cargo_bin("odo")
-        .unwrap()
-        .args(&["goal", "foo"])
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: no such subcommand: `foo`\n");
-}
-
-#[test]
-fn odo_goal_add_reports_missing_goal_description() {
-    Command::cargo_bin("odo")
-        .unwrap()
-        .args(&["goal", "add"])
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: missing description\n");
-}
-
-#[test]
 fn odo_goal_add_adds_goal() {
     let home_dir = TempHomeDir::new();
     Command::cargo_bin("odo")
@@ -264,17 +177,6 @@ fn odo_goal_add_adds_goal() {
         .success()
         .stdout("")
         .stderr("");
-}
-
-#[test]
-fn odo_goal_add_reports_missing_goal_action() {
-    Command::cargo_bin("odo")
-        .unwrap()
-        .args(&["goal", "add", "--action"])
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr("odo: option `--action` requires an argument\n");
 }
 
 #[test]

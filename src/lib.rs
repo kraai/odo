@@ -44,6 +44,10 @@ pub fn run<T: Iterator<Item = String>>(args: T) -> Result<(), String> {
             ActionSubcommand::Add { description } => add_action(&connection, description)?,
             ActionSubcommand::List => list_actions(&connection, &mut io::stdout())?,
             ActionSubcommand::Remove { description } => remove_action(&connection, description)?,
+            ActionSubcommand::SetDescription {
+                old_description,
+                new_description,
+            } => set_action_description(&connection, old_description, new_description)?,
         },
         Command::Goal(subcommand) => match subcommand {
             GoalSubcommand::Add {
@@ -94,6 +98,25 @@ fn parse_args<T: Iterator<Item = String>>(mut args: T) -> Result<Command, String
                             description: args.join(" "),
                         }))
                     }
+                    "set" => match args.next() {
+                        Some(field) => match field.as_str() {
+                            "description" => {
+                                let old_description = args
+                                    .next()
+                                    .ok_or_else(|| "missing old description".to_string())?;
+                                let args = args.collect::<Vec<_>>();
+                                if args.is_empty() {
+                                    return Err("missing new description".into());
+                                }
+                                Ok(Command::Action(ActionSubcommand::SetDescription {
+                                    old_description,
+                                    new_description: args.join(" "),
+                                }))
+                            }
+                            _ => Err(format!("no such field: `{}`", field)),
+                        },
+                        None => Err("missing field".into()),
+                    },
                     _ => Err(format!("no such subcommand: `{}`", subcommand)),
                 },
                 None => Err("missing subcommand".into()),
@@ -183,9 +206,17 @@ enum Command {
 
 #[derive(Debug, PartialEq)]
 enum ActionSubcommand {
-    Add { description: String },
+    Add {
+        description: String,
+    },
     List,
-    Remove { description: String },
+    Remove {
+        description: String,
+    },
+    SetDescription {
+        old_description: String,
+        new_description: String,
+    },
 }
 
 #[derive(Debug, PartialEq)]
@@ -254,6 +285,24 @@ fn remove_action<T: AsRef<str>>(connection: &Connection, description: T) -> Resu
             rusqlite::params![description.as_ref()],
         )
         .map_err(|e| format!("unable to remove action: {}", e))?
+    {
+        0 => Err("action does not exist".into()),
+        1 => Ok(()),
+        _ => unreachable!(),
+    }
+}
+
+fn set_action_description<T: AsRef<str>, U: AsRef<str>>(
+    connection: &Connection,
+    old_description: T,
+    new_description: U,
+) -> Result<(), String> {
+    match connection
+        .execute(
+            "UPDATE actions SET description = ?1 WHERE description = ?2",
+            rusqlite::params![new_description.as_ref(), old_description.as_ref()],
+        )
+        .map_err(|e| format!("unable to set description: {}", e))?
     {
         0 => Err("action does not exist".into()),
         1 => Ok(()),
@@ -447,6 +496,70 @@ mod tests {
     }
 
     #[test]
+    fn reports_missing_action_set_field() {
+        assert_eq!(
+            parse_args(IntoIter::new(["action".to_string(), "set".to_string()])),
+            Err("missing field".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_no_such_action_field() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "action".to_string(),
+                "set".to_string(),
+                "foo".to_string(),
+            ])),
+            Err("no such field: `foo`".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_missing_old_action_description() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "action".to_string(),
+                "set".to_string(),
+                "description".to_string(),
+            ])),
+            Err("missing old description".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_missing_new_action_description() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "action".to_string(),
+                "set".to_string(),
+                "description".to_string(),
+                "Read *Network Efect*.".to_string(),
+            ])),
+            Err("missing new description".to_string())
+        );
+    }
+
+    #[test]
+    fn parses_action_set_description() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "action".to_string(),
+                "set".to_string(),
+                "description".to_string(),
+                "Read *Network Efect*.".to_string(),
+                "Read".to_string(),
+                "*Network".to_string(),
+                "Effect*.".to_string(),
+            ])),
+            Ok(Command::Action(ActionSubcommand::SetDescription {
+                old_description: "Read *Network Efect*.".into(),
+                new_description: "Read *Network Effect*.".into()
+            }))
+        );
+    }
+
+    #[test]
     fn reports_missing_goal_subcommand() {
         assert_eq!(
             parse_args(IntoIter::new(["goal".to_string()])),
@@ -511,7 +624,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_no_such_field() {
+    fn reports_no_such_goal_field() {
         assert_eq!(
             parse_args(IntoIter::new([
                 "goal".to_string(),
@@ -567,7 +680,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_missing_old_description() {
+    fn reports_missing_old_goal_description() {
         assert_eq!(
             parse_args(IntoIter::new([
                 "goal".to_string(),
@@ -579,7 +692,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_missing_new_description() {
+    fn reports_missing_new_goal_description() {
         assert_eq!(
             parse_args(IntoIter::new([
                 "goal".to_string(),
@@ -713,6 +826,73 @@ mod tests {
                     .get::<usize, Option<String>>(0))
                 .unwrap(),
             None
+        );
+    }
+
+    #[test]
+    fn sets_action_description() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        connection
+            .execute(
+                "INSERT INTO actions (description) VALUES('Read *Network Efect*.')",
+                [],
+            )
+            .unwrap();
+        set_action_description(
+            &connection,
+            "Read *Network Efect*.",
+            "Read *Network Effect*.",
+        )
+        .unwrap();
+        assert_eq!(
+            connection
+                .query_row("SELECT description FROM actions", [], |row| row
+                    .get::<usize, String>(0))
+                .unwrap(),
+            "Read *Network Effect*."
+        );
+    }
+
+    #[test]
+    fn fails_to_set_nonexistent_action_description() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        assert_eq!(
+            set_action_description(
+                &connection,
+                "Read *Network Efect*.",
+                "Read *Network Effect*."
+            ),
+            Err("action does not exist".to_string())
+        );
+    }
+
+    #[test]
+    fn updates_goal_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        connection
+            .execute("INSERT INTO actions VALUES('Borrow *Network Efect*.')", [])
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO goals VALUES('Read *Network Effect*.', 'Borrow *Network Efect*.')",
+                [],
+            )
+            .unwrap();
+        set_action_description(
+            &connection,
+            "Borrow *Network Efect*.",
+            "Borrow *Network Effect*.",
+        )
+        .unwrap();
+        assert_eq!(
+            connection
+                .query_row("SELECT action FROM goals", [], |row| row
+                    .get::<usize, String>(0))
+                .unwrap(),
+            "Borrow *Network Effect*.",
         );
     }
 

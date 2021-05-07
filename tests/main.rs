@@ -228,3 +228,40 @@ fn odo_goal_rm_removes_goal() {
         .stdout("")
         .stderr("");
 }
+
+#[test]
+fn odo_goal_set_description_sets_description() {
+    let home_dir = TempHomeDir::new();
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "add", "Read", "*Network", "Efect*."])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&[
+            "goal",
+            "set",
+            "description",
+            "Read *Network Efect*.",
+            "Read",
+            "*Network",
+            "Effect*.",
+        ])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+    Command::cargo_bin("odo")
+        .unwrap()
+        .home_dir(home_dir.path())
+        .args(&["goal", "ls"])
+        .assert()
+        .success()
+        .stdout("Read *Network Effect*.\n")
+        .stderr("");
+}

@@ -52,6 +52,10 @@ pub fn run<T: Iterator<Item = String>>(args: T) -> Result<(), String> {
             } => add_goal(&connection, description, action)?,
             GoalSubcommand::List => list_goals(&connection, &mut io::stdout())?,
             GoalSubcommand::Remove { description } => remove_goal(&connection, description)?,
+            GoalSubcommand::SetAction {
+                description,
+                action,
+            } => set_goal_action(&connection, description, action)?,
             GoalSubcommand::SetDescription {
                 old_description,
                 new_description,
@@ -131,6 +135,19 @@ fn parse_args<T: Iterator<Item = String>>(mut args: T) -> Result<Command, String
                     }
                     "set" => match args.next() {
                         Some(field) => match field.as_str() {
+                            "action" => {
+                                let description = args
+                                    .next()
+                                    .ok_or_else(|| "missing description".to_string())?;
+                                let args = args.collect::<Vec<_>>();
+                                if args.is_empty() {
+                                    return Err("missing action".into());
+                                }
+                                Ok(Command::Goal(GoalSubcommand::SetAction {
+                                    description,
+                                    action: args.join(" "),
+                                }))
+                            }
                             "description" => {
                                 let old_description = args
                                     .next()
@@ -180,6 +197,10 @@ enum GoalSubcommand {
     List,
     Remove {
         description: String,
+    },
+    SetAction {
+        description: String,
+        action: String,
     },
     SetDescription {
         old_description: String,
@@ -305,6 +326,36 @@ fn remove_goal<T: AsRef<str>>(connection: &Connection, description: T) -> Result
         )
         .map_err(|e| format!("unable to remove goal: {}", e))?
     {
+        0 => Err("goal does not exist".into()),
+        1 => Ok(()),
+        _ => unreachable!(),
+    }
+}
+
+fn set_goal_action<T: AsRef<str>, U: AsRef<str>>(
+    connection: &Connection,
+    description: T,
+    action: U,
+) -> Result<(), String> {
+    match connection
+        .execute(
+            "UPDATE goals SET action = ?1 WHERE description = ?2",
+            rusqlite::params![action.as_ref(), description.as_ref()],
+        )
+        .map_err(|e| {
+            if let rusqlite::Error::SqliteFailure(
+                libsqlite3_sys::Error {
+                    code: libsqlite3_sys::ErrorCode::ConstraintViolation,
+                    ..
+                },
+                _,
+            ) = e
+            {
+                "action does not exist".into()
+            } else {
+                format!("unable to set action: {}", e)
+            }
+        })? {
         0 => Err("goal does not exist".into()),
         1 => Ok(()),
         _ => unreachable!(),
@@ -468,6 +519,50 @@ mod tests {
                 "foo".to_string(),
             ])),
             Err("no such field: `foo`".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_missing_description() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "goal".to_string(),
+                "set".to_string(),
+                "action".to_string(),
+            ])),
+            Err("missing description".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_missing_action() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "goal".to_string(),
+                "set".to_string(),
+                "action".to_string(),
+                "Read *Network Effect*.".to_string(),
+            ])),
+            Err("missing action".to_string())
+        );
+    }
+
+    #[test]
+    fn parses_goal_set_action() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "goal".to_string(),
+                "set".to_string(),
+                "action".to_string(),
+                "Read *Network Effect*.".to_string(),
+                "Borrow".to_string(),
+                "*Network".to_string(),
+                "Effect*.".to_string(),
+            ])),
+            Ok(Command::Goal(GoalSubcommand::SetAction {
+                description: "Read *Network Effect*.".into(),
+                action: "Borrow *Network Effect*.".into()
+            }))
         );
     }
 
@@ -763,6 +858,48 @@ mod tests {
         initialize(&connection).unwrap();
         assert_eq!(
             remove_goal(&connection, "Read *Network Effect*."),
+            Err("goal does not exist".to_string())
+        );
+    }
+
+    #[test]
+    fn sets_goal_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        connection
+            .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO goals (description) VALUES('Read *Network Effect*.')",
+                [],
+            )
+            .unwrap();
+        set_goal_action(
+            &connection,
+            "Read *Network Effect*.",
+            "Borrow *Network Effect*.",
+        )
+        .unwrap();
+        assert_eq!(
+            connection
+                .query_row("SELECT action FROM goals", [], |row| row
+                    .get::<usize, String>(0))
+                .unwrap(),
+            "Borrow *Network Effect*."
+        );
+    }
+
+    #[test]
+    fn fails_to_set_nonexistent_goal_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        assert_eq!(
+            set_goal_description(
+                &connection,
+                "Read *Network Effect*.",
+                "Borrow *Network Effect*."
+            ),
             Err("goal does not exist".to_string())
         );
     }

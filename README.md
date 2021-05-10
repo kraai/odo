@@ -1,3 +1,7 @@
+# Usage
+
+[Man page](https://github.com/kraai/odo/blob/master/odo.1)
+
 # References
 
 * [Taskwarrior](https://taskwarrior.org/)

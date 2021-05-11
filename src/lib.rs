@@ -1035,8 +1035,11 @@ mod tests {
         let connection = Connection::open_in_memory().unwrap();
         initialize(&connection).unwrap();
         connection
+            .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
+            .unwrap();
+        connection
             .execute(
-                "INSERT INTO goals (description) VALUES('Read *Network Effect*.')",
+                "INSERT INTO goals VALUES('Read *Network Effect*.', 'Borrow *Network Effect*.')",
                 [],
             )
             .unwrap();

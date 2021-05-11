@@ -669,7 +669,9 @@ mod tests {
                 "goal".to_string(),
                 "clear".to_string(),
                 "action".to_string(),
-                "Read *Network Effect*.".to_string(),
+                "Read".to_string(),
+                "*Network".to_string(),
+                "Effect*.".to_string(),
             ])),
             Ok(Command::Goal(GoalSubcommand::ClearAction {
                 description: "Read *Network Effect*.".into(),

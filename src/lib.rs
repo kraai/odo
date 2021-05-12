@@ -161,13 +161,9 @@ fn parse_args<T: Iterator<Item = String>>(mut args: T) -> Result<Command, String
                     },
                     "ls" => {
                         let mut all = false;
-                        if let Some(arg) = args.next() {
+                        while let Some(arg) = args.next() {
                             if arg == "--all" {
                                 all = true;
-
-                                if let Some(arg) = args.next() {
-                                    return Err(format!("extra argument: `{}`", arg));
-                                }
                             } else {
                                 return Err(format!("extra argument: `{}`", arg));
                             }

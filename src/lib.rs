@@ -283,7 +283,20 @@ fn add_action<T: AsRef<str>>(connection: &Connection, description: T) -> Result<
             rusqlite::params![description.as_ref()],
         )
         .map(|_| ())
-        .map_err(|e| format!("unable to add action: {}", e))
+        .map_err(|e| {
+            if let rusqlite::Error::SqliteFailure(
+                libsqlite3_sys::Error {
+                    code: libsqlite3_sys::ErrorCode::ConstraintViolation,
+                    ..
+                },
+                _,
+            ) = e
+            {
+                "action already exists".into()
+            } else {
+                format!("unable to add action: {}", e)
+            }
+        })
 }
 
 fn list_actions<T: Write>(connection: &Connection, writer: &mut T) -> Result<(), String> {
@@ -359,7 +372,11 @@ fn add_goal<T: AsRef<str>, U: AsRef<str>>(
                     _,
                 ) = e
                 {
-                    "action does not exist".into()
+                    if e.to_string().starts_with("UNIQUE") {
+                        "goal already exists".into()
+                    } else {
+                        "action does not exist".into()
+                    }
                 } else {
                     format!("unable to add goal: {}", e)
                 }
@@ -371,7 +388,20 @@ fn add_goal<T: AsRef<str>, U: AsRef<str>>(
                 rusqlite::params![description.as_ref()],
             )
             .map(|_| ())
-            .map_err(|e| format!("unable to add goal: {}", e))
+            .map_err(|e| {
+                if let rusqlite::Error::SqliteFailure(
+                    libsqlite3_sys::Error {
+                        code: libsqlite3_sys::ErrorCode::ConstraintViolation,
+                        ..
+                    },
+                    _,
+                ) = e
+                {
+                    "goal already exists".into()
+                } else {
+                    format!("unable to add goal: {}", e)
+                }
+            })
     }
 }
 
@@ -867,6 +897,17 @@ mod tests {
     }
 
     #[test]
+    fn fails_to_add_duplicate_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        add_action(&connection, "Read *Network Effect*.").unwrap();
+        assert_eq!(
+            add_action(&connection, "Read *Network Effect*."),
+            Err("action already exists".to_string())
+        );
+    }
+
+    #[test]
     fn lists_no_actions() {
         let connection = Connection::open_in_memory().unwrap();
         initialize(&connection).unwrap();
@@ -1059,6 +1100,33 @@ mod tests {
             .unwrap();
         assert_eq!(description, "Read *Network Effect*.");
         assert_eq!(action, Some("Borrow *Network Effect*.".to_string()));
+    }
+
+    #[test]
+    fn fails_to_add_duplicate_goal() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        add_goal::<&str, &str>(&connection, "Read *Network Effect*.", None).unwrap();
+        assert_eq!(
+            add_goal::<&str, &str>(&connection, "Read *Network Effect*.", None),
+            Err("goal already exists".to_string())
+        );
+    }
+
+    #[test]
+    fn fails_to_add_duplicate_goal_with_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        add_action(&connection, "Borrow *Network Effect*.").unwrap();
+        add_goal::<&str, &str>(&connection, "Read *Network Effect*.", None).unwrap();
+        assert_eq!(
+            add_goal(
+                &connection,
+                "Read *Network Effect*.",
+                Some("Borrow *Network Effect*.")
+            ),
+            Err("goal already exists".to_string())
+        );
     }
 
     #[test]

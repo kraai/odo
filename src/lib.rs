@@ -57,7 +57,7 @@ pub fn run<T: Iterator<Item = String>>(args: T) -> Result<(), String> {
             GoalSubcommand::ClearAction { description } => {
                 clear_goal_action(&connection, description)?
             }
-            GoalSubcommand::List => list_goals(&connection, &mut io::stdout())?,
+            GoalSubcommand::List { all } => list_goals(&connection, all, &mut io::stdout())?,
             GoalSubcommand::Remove { description } => remove_goal(&connection, description)?,
             GoalSubcommand::SetAction {
                 description,
@@ -160,10 +160,19 @@ fn parse_args<T: Iterator<Item = String>>(mut args: T) -> Result<Command, String
                         None => Err("missing field".into()),
                     },
                     "ls" => {
+                        let mut all = false;
                         if let Some(arg) = args.next() {
-                            return Err(format!("extra argument: `{}`", arg));
+                            if arg == "--all" {
+                                all = true;
+
+                                if let Some(arg) = args.next() {
+                                    return Err(format!("extra argument: `{}`", arg));
+                                }
+                            } else {
+                                return Err(format!("extra argument: `{}`", arg));
+                            }
                         }
-                        Ok(Command::Goal(GoalSubcommand::List))
+                        Ok(Command::Goal(GoalSubcommand::List { all }))
                     }
                     "rm" => {
                         let args = args.collect::<Vec<_>>();
@@ -246,7 +255,9 @@ enum GoalSubcommand {
     ClearAction {
         description: String,
     },
-    List,
+    List {
+        all: bool,
+    },
     Remove {
         description: String,
     },
@@ -382,9 +393,14 @@ fn clear_goal_action<T: AsRef<str>>(connection: &Connection, description: T) -> 
     }
 }
 
-fn list_goals<T: Write>(connection: &Connection, writer: &mut T) -> Result<(), String> {
+fn list_goals<T: Write>(connection: &Connection, all: bool, writer: &mut T) -> Result<(), String> {
+    let statement = if all {
+        "SELECT description FROM goals"
+    } else {
+        "SELECT description FROM goals WHERE action IS NULL"
+    };
     let mut statement = connection
-        .prepare("SELECT description FROM goals WHERE action IS NULL")
+        .prepare(statement)
         .map_err(|e| format!("unable to prepare statement: {}", e))?;
     let mut rows = statement
         .query([])
@@ -688,6 +704,39 @@ mod tests {
                 "foo".to_string()
             ])),
             Err("extra argument: `foo`".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_extra_goal_ls_argument_after_all() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "goal".to_string(),
+                "ls".to_string(),
+                "--all".to_string(),
+                "foo".to_string()
+            ])),
+            Err("extra argument: `foo`".to_string())
+        );
+    }
+
+    #[test]
+    fn parses_goal_ls() {
+        assert_eq!(
+            parse_args(IntoIter::new(["goal".to_string(), "ls".to_string()])),
+            Ok(Command::Goal(GoalSubcommand::List { all: false }))
+        );
+    }
+
+    #[test]
+    fn parses_goal_ls_all() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "goal".to_string(),
+                "ls".to_string(),
+                "--all".to_string()
+            ])),
+            Ok(Command::Goal(GoalSubcommand::List { all: true }))
         );
     }
 
@@ -1068,7 +1117,7 @@ mod tests {
         let connection = Connection::open_in_memory().unwrap();
         initialize(&connection).unwrap();
         let mut output = Vec::new();
-        list_goals(&connection, &mut output).unwrap();
+        list_goals(&connection, false, &mut output).unwrap();
         assert_eq!(String::from_utf8(output).unwrap(), "");
     }
 
@@ -1083,7 +1132,7 @@ mod tests {
             )
             .unwrap();
         let mut output = Vec::new();
-        list_goals(&connection, &mut output).unwrap();
+        list_goals(&connection, false, &mut output).unwrap();
         assert_eq!(
             String::from_utf8(output).unwrap(),
             "Read *Network Effect*.\n"
@@ -1107,7 +1156,7 @@ mod tests {
             )
             .unwrap();
         let mut output = Vec::new();
-        list_goals(&connection, &mut output).unwrap();
+        list_goals(&connection, false, &mut output).unwrap();
         assert_eq!(
             String::from_utf8(output).unwrap(),
             "Read *Network Effect*.\nRead *What Were We Thinking*.\n"
@@ -1128,8 +1177,29 @@ mod tests {
             )
             .unwrap();
         let mut output = Vec::new();
-        list_goals(&connection, &mut output).unwrap();
+        list_goals(&connection, false, &mut output).unwrap();
         assert_eq!(String::from_utf8(output).unwrap(), "");
+    }
+
+    #[test]
+    fn lists_goal_with_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        connection
+            .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO goals VALUES('Read *Network Effect*.', 'Borrow *Network Effect*.')",
+                [],
+            )
+            .unwrap();
+        let mut output = Vec::new();
+        list_goals(&connection, true, &mut output).unwrap();
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "Read *Network Effect*.\n"
+        );
     }
 
     #[test]

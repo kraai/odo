@@ -54,9 +54,6 @@ pub fn run<T: Iterator<Item = String>>(args: T) -> Result<(), String> {
                 description,
                 action,
             } => add_goal(&connection, description, action)?,
-            GoalSubcommand::ClearAction { description } => {
-                clear_goal_action(&connection, description)?
-            }
             GoalSubcommand::List { all } => list_goals(&connection, all, &mut io::stdout())?,
             GoalSubcommand::Remove { description } => remove_goal(&connection, description)?,
             GoalSubcommand::SetAction {
@@ -67,6 +64,9 @@ pub fn run<T: Iterator<Item = String>>(args: T) -> Result<(), String> {
                 old_description,
                 new_description,
             } => set_goal_description(&connection, old_description, new_description)?,
+            GoalSubcommand::UnsetAction { description } => {
+                unset_goal_action(&connection, description)?
+            }
         },
     }
     Ok(())
@@ -144,21 +144,6 @@ fn parse_args<T: Iterator<Item = String>>(mut args: T) -> Result<Command, String
                             description: args.join(" "),
                         }))
                     }
-                    "clear" => match args.next() {
-                        Some(field) => match field.as_str() {
-                            "action" => {
-                                let args = args.collect::<Vec<_>>();
-                                if args.is_empty() {
-                                    return Err("missing description".into());
-                                }
-                                Ok(Command::Goal(GoalSubcommand::ClearAction {
-                                    description: args.join(" "),
-                                }))
-                            }
-                            _ => Err(format!("no such field: `{}`", field)),
-                        },
-                        None => Err("missing field".into()),
-                    },
                     "ls" => {
                         let mut all = false;
                         while let Some(arg) = args.next() {
@@ -211,6 +196,21 @@ fn parse_args<T: Iterator<Item = String>>(mut args: T) -> Result<Command, String
                         },
                         None => Err("missing field".into()),
                     },
+                    "unset" => match args.next() {
+                        Some(field) => match field.as_str() {
+                            "action" => {
+                                let args = args.collect::<Vec<_>>();
+                                if args.is_empty() {
+                                    return Err("missing description".into());
+                                }
+                                Ok(Command::Goal(GoalSubcommand::UnsetAction {
+                                    description: args.join(" "),
+                                }))
+                            }
+                            _ => Err(format!("no such field: `{}`", field)),
+                        },
+                        None => Err("missing field".into()),
+                    },
                     _ => Err(format!("no such subcommand: `{}`", subcommand)),
                 },
                 None => Err("missing subcommand".into()),
@@ -248,9 +248,6 @@ enum GoalSubcommand {
         description: String,
         action: Option<String>,
     },
-    ClearAction {
-        description: String,
-    },
     List {
         all: bool,
     },
@@ -264,6 +261,9 @@ enum GoalSubcommand {
     SetDescription {
         old_description: String,
         new_description: String,
+    },
+    UnsetAction {
+        description: String,
     },
 }
 
@@ -405,20 +405,6 @@ fn add_goal<T: AsRef<str>, U: AsRef<str>>(
     }
 }
 
-fn clear_goal_action<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
-    match connection
-        .execute(
-            "UPDATE goals SET action = NULL WHERE description = ?1",
-            rusqlite::params![description.as_ref()],
-        )
-        .map_err(|e| format!("unable to clear action: {}", e))?
-    {
-        0 => Err("goal does not exist".into()),
-        1 => Ok(()),
-        _ => unreachable!(),
-    }
-}
-
 fn list_goals<T: Write>(connection: &Connection, all: bool, writer: &mut T) -> Result<(), String> {
     let statement = if all {
         "SELECT description FROM goals"
@@ -499,6 +485,20 @@ fn set_goal_description<T: AsRef<str>, U: AsRef<str>>(
             rusqlite::params![new_description.as_ref(), old_description.as_ref()],
         )
         .map_err(|e| format!("unable to set description: {}", e))?
+    {
+        0 => Err("goal does not exist".into()),
+        1 => Ok(()),
+        _ => unreachable!(),
+    }
+}
+
+fn unset_goal_action<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
+    match connection
+        .execute(
+            "UPDATE goals SET action = NULL WHERE description = ?1",
+            rusqlite::params![description.as_ref()],
+        )
+        .map_err(|e| format!("unable to unset action: {}", e))?
     {
         0 => Err("goal does not exist".into()),
         1 => Ok(()),
@@ -673,55 +673,6 @@ mod tests {
     }
 
     #[test]
-    fn reports_missing_goal_clear_field() {
-        assert_eq!(
-            parse_args(IntoIter::new(["goal".to_string(), "clear".to_string()])),
-            Err("missing field".to_string())
-        );
-    }
-
-    #[test]
-    fn reports_no_such_goal_clear_field() {
-        assert_eq!(
-            parse_args(IntoIter::new([
-                "goal".to_string(),
-                "clear".to_string(),
-                "foo".to_string(),
-            ])),
-            Err("no such field: `foo`".to_string())
-        );
-    }
-
-    #[test]
-    fn reports_missing_goal_clear_description() {
-        assert_eq!(
-            parse_args(IntoIter::new([
-                "goal".to_string(),
-                "clear".to_string(),
-                "action".to_string(),
-            ])),
-            Err("missing description".to_string())
-        );
-    }
-
-    #[test]
-    fn parses_goal_clear_action() {
-        assert_eq!(
-            parse_args(IntoIter::new([
-                "goal".to_string(),
-                "clear".to_string(),
-                "action".to_string(),
-                "Read".to_string(),
-                "*Network".to_string(),
-                "Effect*.".to_string(),
-            ])),
-            Ok(Command::Goal(GoalSubcommand::ClearAction {
-                description: "Read *Network Effect*.".into(),
-            }))
-        );
-    }
-
-    #[test]
     fn reports_extra_goal_ls_argument() {
         assert_eq!(
             parse_args(IntoIter::new([
@@ -878,6 +829,55 @@ mod tests {
             Ok(Command::Goal(GoalSubcommand::SetDescription {
                 old_description: "Read *Network Efect*.".into(),
                 new_description: "Read *Network Effect*.".into()
+            }))
+        );
+    }
+
+    #[test]
+    fn reports_missing_goal_unset_field() {
+        assert_eq!(
+            parse_args(IntoIter::new(["goal".to_string(), "unset".to_string()])),
+            Err("missing field".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_no_such_goal_unset_field() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "goal".to_string(),
+                "unset".to_string(),
+                "foo".to_string(),
+            ])),
+            Err("no such field: `foo`".to_string())
+        );
+    }
+
+    #[test]
+    fn reports_missing_goal_unset_description() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "goal".to_string(),
+                "unset".to_string(),
+                "action".to_string(),
+            ])),
+            Err("missing description".to_string())
+        );
+    }
+
+    #[test]
+    fn parses_goal_unset_action() {
+        assert_eq!(
+            parse_args(IntoIter::new([
+                "goal".to_string(),
+                "unset".to_string(),
+                "action".to_string(),
+                "Read".to_string(),
+                "*Network".to_string(),
+                "Effect*.".to_string(),
+            ])),
+            Ok(Command::Goal(GoalSubcommand::UnsetAction {
+                description: "Read *Network Effect*.".into(),
             }))
         );
     }
@@ -1144,39 +1144,6 @@ mod tests {
     }
 
     #[test]
-    fn clears_goal_action() {
-        let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
-        connection
-            .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
-            .unwrap();
-        connection
-            .execute(
-                "INSERT INTO goals VALUES('Read *Network Effect*.', 'Borrow *Network Effect*.')",
-                [],
-            )
-            .unwrap();
-        clear_goal_action(&connection, "Read *Network Effect*.").unwrap();
-        assert_eq!(
-            connection
-                .query_row("SELECT action FROM goals", [], |row| row
-                    .get::<usize, Option<String>>(0))
-                .unwrap(),
-            None
-        );
-    }
-
-    #[test]
-    fn fails_to_clear_action_of_nonexistent_goal() {
-        let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
-        assert_eq!(
-            clear_goal_action(&connection, "Read *Network Effect*."),
-            Err("goal does not exist".to_string())
-        );
-    }
-
-    #[test]
     fn lists_no_goals() {
         let connection = Connection::open_in_memory().unwrap();
         initialize(&connection).unwrap();
@@ -1370,6 +1337,39 @@ mod tests {
                 "Read *Network Efect*.",
                 "Read *Network Effect*."
             ),
+            Err("goal does not exist".to_string())
+        );
+    }
+
+    #[test]
+    fn unsets_goal_action() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        connection
+            .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO goals VALUES('Read *Network Effect*.', 'Borrow *Network Effect*.')",
+                [],
+            )
+            .unwrap();
+        unset_goal_action(&connection, "Read *Network Effect*.").unwrap();
+        assert_eq!(
+            connection
+                .query_row("SELECT action FROM goals", [], |row| row
+                    .get::<usize, Option<String>>(0))
+                .unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn fails_to_unset_action_of_nonexistent_goal() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize(&connection).unwrap();
+        assert_eq!(
+            unset_goal_action(&connection, "Read *Network Effect*."),
             Err("goal does not exist".to_string())
         );
     }

@@ -13,19 +13,16 @@
 // You should have received a copy of the GNU Affero General Public License along with odo.  If not,
 // see <https://www.gnu.org/licenses/>.
 
-use directories::ProjectDirs;
-use rusqlite::{config::DbConfig, Connection};
-#[cfg(all(unix, not(target_os = "macos")))]
-use std::os::unix::fs::DirBuilderExt;
-use std::{
-    fs::DirBuilder,
-    io::{self, Write},
-};
+use rusqlite::Connection;
+use std::io::{self, Write};
+
+mod database;
 
 pub fn run<T: Iterator<Item = String>>(args: T) -> Result<(), String> {
     let command = Command::from_args(args)?;
-    let connection = open_database()?;
-    initialize(&connection).map_err(|e| format!("unable to initialize database: {}", e))?;
+    let connection = database::open()?;
+    database::initialize(&connection)
+        .map_err(|e| format!("unable to initialize database: {}", e))?;
     command.run(&connection)
 }
 
@@ -260,31 +257,6 @@ enum GoalSubcommand {
     UnsetAction {
         description: String,
     },
-}
-
-fn open_database() -> Result<Connection, String> {
-    let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
-        .ok_or("unable to determine project directories")?;
-    let data_dir = project_dirs.data_dir();
-    let mut builder = DirBuilder::new();
-    #[cfg(all(unix, not(target_os = "macos")))]
-    builder.mode(0o700);
-    builder
-        .recursive(true)
-        .create(data_dir)
-        .map_err(|e| format!("unable to create `{}`: {}", data_dir.display(), e))?;
-    let database_path = data_dir.join("odo.sqlite3");
-    Connection::open(&database_path)
-        .map_err(|e| format!("unable to open `{}`: {}", database_path.display(), e))
-}
-
-fn initialize(connection: &Connection) -> Result<(), String> {
-    connection
-        .set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_FKEY, true)
-        .map_err(|e| e.to_string())?;
-    connection
-        .execute_batch(include_str!("initialize.sql"))
-        .map_err(|e| e.to_string())
 }
 
 fn add_action<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {
@@ -896,7 +868,7 @@ mod tests {
     #[test]
     fn adds_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         add_action(&connection, "Read *Network Effect*.").unwrap();
         assert_eq!(
             connection
@@ -910,7 +882,7 @@ mod tests {
     #[test]
     fn fails_to_add_duplicate_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         add_action(&connection, "Read *Network Effect*.").unwrap();
         assert_eq!(
             add_action(&connection, "Read *Network Effect*."),
@@ -921,7 +893,7 @@ mod tests {
     #[test]
     fn lists_no_actions() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         let mut output = Vec::new();
         list_actions(&connection, &mut output).unwrap();
         assert_eq!(String::from_utf8(output).unwrap(), "");
@@ -930,7 +902,7 @@ mod tests {
     #[test]
     fn lists_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute("INSERT INTO actions VALUES('Read *Network Effect*.')", [])
             .unwrap();
@@ -945,7 +917,7 @@ mod tests {
     #[test]
     fn lists_actions() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute("INSERT INTO actions VALUES('Read *Network Effect*.')", [])
             .unwrap();
@@ -966,7 +938,7 @@ mod tests {
     #[test]
     fn removes_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute("INSERT INTO actions VALUES('Read *Network Effect*.')", [])
             .unwrap();
@@ -980,7 +952,7 @@ mod tests {
     #[test]
     fn fails_to_remove_nonexistent_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         assert_eq!(
             remove_action(&connection, "Read *Network Effect*."),
             Err("action does not exist".to_string())
@@ -990,7 +962,7 @@ mod tests {
     #[test]
     fn removing_action_clears_goal_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
             .unwrap();
@@ -1013,7 +985,7 @@ mod tests {
     #[test]
     fn sets_action_description() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute(
                 "INSERT INTO actions (description) VALUES('Read *Network Efect*.')",
@@ -1038,7 +1010,7 @@ mod tests {
     #[test]
     fn fails_to_set_nonexistent_action_description() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         assert_eq!(
             set_action_description(
                 &connection,
@@ -1052,7 +1024,7 @@ mod tests {
     #[test]
     fn updates_goal_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute("INSERT INTO actions VALUES('Borrow *Network Efect*.')", [])
             .unwrap();
@@ -1080,7 +1052,7 @@ mod tests {
     #[test]
     fn adds_goal() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         add_goal::<&str, &str>(&connection, "Read *Network Effect*.", None).unwrap();
         let (description, action): (String, Option<String>) = connection
             .query_row("SELECT * FROM goals", [], |row| {
@@ -1094,7 +1066,7 @@ mod tests {
     #[test]
     fn adds_goal_with_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
             .unwrap();
@@ -1116,7 +1088,7 @@ mod tests {
     #[test]
     fn fails_to_add_duplicate_goal() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         add_goal::<&str, &str>(&connection, "Read *Network Effect*.", None).unwrap();
         assert_eq!(
             add_goal::<&str, &str>(&connection, "Read *Network Effect*.", None),
@@ -1127,7 +1099,7 @@ mod tests {
     #[test]
     fn fails_to_add_duplicate_goal_with_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         add_action(&connection, "Borrow *Network Effect*.").unwrap();
         add_goal::<&str, &str>(&connection, "Read *Network Effect*.", None).unwrap();
         assert_eq!(
@@ -1143,7 +1115,7 @@ mod tests {
     #[test]
     fn fails_to_add_goal_with_nonexistent_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         assert_eq!(
             add_goal(
                 &connection,
@@ -1157,7 +1129,7 @@ mod tests {
     #[test]
     fn lists_no_goals() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         let mut output = Vec::new();
         list_goals(&connection, false, &mut output).unwrap();
         assert_eq!(String::from_utf8(output).unwrap(), "");
@@ -1166,7 +1138,7 @@ mod tests {
     #[test]
     fn lists_goal() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute(
                 "INSERT INTO goals (description) VALUES('Read *Network Effect*.')",
@@ -1184,7 +1156,7 @@ mod tests {
     #[test]
     fn lists_goals() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute(
                 "INSERT INTO goals (description) VALUES('Read *Network Effect*.')",
@@ -1208,7 +1180,7 @@ mod tests {
     #[test]
     fn does_not_list_goal_with_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
             .unwrap();
@@ -1226,7 +1198,7 @@ mod tests {
     #[test]
     fn lists_goal_with_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
             .unwrap();
@@ -1247,7 +1219,7 @@ mod tests {
     #[test]
     fn removes_goal() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute(
                 "INSERT INTO goals (description) VALUES('Read *Network Effect*.')",
@@ -1264,7 +1236,7 @@ mod tests {
     #[test]
     fn fails_to_remove_nonexistent_goal() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         assert_eq!(
             remove_goal(&connection, "Read *Network Effect*."),
             Err("goal does not exist".to_string())
@@ -1274,7 +1246,7 @@ mod tests {
     #[test]
     fn sets_goal_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
             .unwrap();
@@ -1302,7 +1274,7 @@ mod tests {
     #[test]
     fn fails_to_set_nonexistent_goal_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         assert_eq!(
             set_goal_description(
                 &connection,
@@ -1316,7 +1288,7 @@ mod tests {
     #[test]
     fn sets_goal_description() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute(
                 "INSERT INTO goals (description) VALUES('Read *Network Efect*.')",
@@ -1341,7 +1313,7 @@ mod tests {
     #[test]
     fn fails_to_set_nonexistent_goal_description() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         assert_eq!(
             set_goal_description(
                 &connection,
@@ -1355,7 +1327,7 @@ mod tests {
     #[test]
     fn unsets_goal_action() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         connection
             .execute("INSERT INTO actions VALUES('Borrow *Network Effect*.')", [])
             .unwrap();
@@ -1378,7 +1350,7 @@ mod tests {
     #[test]
     fn fails_to_unset_action_of_nonexistent_goal() {
         let connection = Connection::open_in_memory().unwrap();
-        initialize(&connection).unwrap();
+        database::initialize(&connection).unwrap();
         assert_eq!(
             unset_goal_action(&connection, "Read *Network Effect*."),
             Err("goal does not exist".to_string())

@@ -26,10 +26,8 @@ impl Command {
     pub fn from_args<T: Iterator<Item = String>>(mut args: T) -> Result<Self, String> {
         match args.next() {
             Some(command) => match command.as_str() {
-                "action" => {
-                    ActionSubcommand::from_args(args).map(|subcommand| Self::Action(subcommand))
-                }
-                "goal" => GoalSubcommand::from_args(args).map(|subcommand| Self::Goal(subcommand)),
+                "action" => ActionSubcommand::from_args(args).map(Self::Action),
+                "goal" => GoalSubcommand::from_args(args).map(Self::Goal),
                 _ => Err(format!("no such command: `{}`", command)),
             },
             None => Err("missing command".into()),

@@ -19,6 +19,7 @@ version = "0.1.0"
 authors = ["Matthew James Kraai <kraai@ftbfs.org>"]
 edition = "2018"
 license = "AGPL-3.0-or-later"
+resolver = "2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -23,159 +23,10 @@ use std::{
 };
 
 pub fn run<T: Iterator<Item = String>>(args: T) -> Result<(), String> {
-    let command = parse_args(args)?;
+    let command = Command::from_args(args)?;
     let connection = open_database()?;
     initialize(&connection).map_err(|e| format!("unable to initialize database: {}", e))?;
     command.run(&connection)
-}
-
-fn parse_args<T: Iterator<Item = String>>(mut args: T) -> Result<Command, String> {
-    match args.next() {
-        Some(command) => match command.as_str() {
-            "action" => match args.next() {
-                Some(subcommand) => match subcommand.as_str() {
-                    "add" => {
-                        let args = args.collect::<Vec<_>>();
-                        if args.is_empty() {
-                            return Err("missing description".into());
-                        }
-                        Ok(Command::Action(ActionSubcommand::Add {
-                            description: args.join(" "),
-                        }))
-                    }
-                    "ls" => {
-                        if let Some(arg) = args.next() {
-                            return Err(format!("extra argument: `{}`", arg));
-                        }
-                        Ok(Command::Action(ActionSubcommand::List))
-                    }
-                    "rm" => {
-                        let args = args.collect::<Vec<_>>();
-                        if args.is_empty() {
-                            return Err("missing description".into());
-                        }
-                        Ok(Command::Action(ActionSubcommand::Remove {
-                            description: args.join(" "),
-                        }))
-                    }
-                    "set" => match args.next() {
-                        Some(field) => match field.as_str() {
-                            "description" => {
-                                let old_description = args
-                                    .next()
-                                    .ok_or_else(|| "missing old description".to_string())?;
-                                let args = args.collect::<Vec<_>>();
-                                if args.is_empty() {
-                                    return Err("missing new description".into());
-                                }
-                                Ok(Command::Action(ActionSubcommand::SetDescription {
-                                    old_description,
-                                    new_description: args.join(" "),
-                                }))
-                            }
-                            _ => Err(format!("no such field: `{}`", field)),
-                        },
-                        None => Err("missing field".into()),
-                    },
-                    _ => Err(format!("no such subcommand: `{}`", subcommand)),
-                },
-                None => Err("missing subcommand".into()),
-            },
-            "goal" => match args.next() {
-                Some(subcommand) => match subcommand.as_str() {
-                    "add" => {
-                        let mut action = None;
-                        let mut args = args.collect::<Vec<_>>();
-                        if !args.is_empty() && args[0] == "--action" {
-                            args.remove(0);
-                            if args.is_empty() {
-                                return Err("option `--action` requires an argument".into());
-                            }
-                            action = Some(args.remove(0));
-                        }
-                        if args.is_empty() {
-                            return Err("missing description".into());
-                        }
-                        Ok(Command::Goal(GoalSubcommand::Add {
-                            action,
-                            description: args.join(" "),
-                        }))
-                    }
-                    "ls" => {
-                        let mut all = false;
-                        while let Some(arg) = args.next() {
-                            if arg == "--all" {
-                                all = true;
-                            } else {
-                                return Err(format!("extra argument: `{}`", arg));
-                            }
-                        }
-                        Ok(Command::Goal(GoalSubcommand::List { all }))
-                    }
-                    "rm" => {
-                        let args = args.collect::<Vec<_>>();
-                        if args.is_empty() {
-                            return Err("missing description".into());
-                        }
-                        Ok(Command::Goal(GoalSubcommand::Remove {
-                            description: args.join(" "),
-                        }))
-                    }
-                    "set" => match args.next() {
-                        Some(field) => match field.as_str() {
-                            "action" => {
-                                let description = args
-                                    .next()
-                                    .ok_or_else(|| "missing description".to_string())?;
-                                let args = args.collect::<Vec<_>>();
-                                if args.is_empty() {
-                                    return Err("missing action".into());
-                                }
-                                Ok(Command::Goal(GoalSubcommand::SetAction {
-                                    description,
-                                    action: args.join(" "),
-                                }))
-                            }
-                            "description" => {
-                                let old_description = args
-                                    .next()
-                                    .ok_or_else(|| "missing old description".to_string())?;
-                                let args = args.collect::<Vec<_>>();
-                                if args.is_empty() {
-                                    return Err("missing new description".into());
-                                }
-                                Ok(Command::Goal(GoalSubcommand::SetDescription {
-                                    old_description,
-                                    new_description: args.join(" "),
-                                }))
-                            }
-                            _ => Err(format!("no such field: `{}`", field)),
-                        },
-                        None => Err("missing field".into()),
-                    },
-                    "unset" => match args.next() {
-                        Some(field) => match field.as_str() {
-                            "action" => {
-                                let args = args.collect::<Vec<_>>();
-                                if args.is_empty() {
-                                    return Err("missing description".into());
-                                }
-                                Ok(Command::Goal(GoalSubcommand::UnsetAction {
-                                    description: args.join(" "),
-                                }))
-                            }
-                            _ => Err(format!("no such field: `{}`", field)),
-                        },
-                        None => Err("missing field".into()),
-                    },
-                    _ => Err(format!("no such subcommand: `{}`", subcommand)),
-                },
-                None => Err("missing subcommand".into()),
-            },
-            _ => Err(format!("no such command: `{}`", command)),
-        },
-        None => Err("missing command".into()),
-    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -185,6 +36,155 @@ enum Command {
 }
 
 impl Command {
+    fn from_args<T: Iterator<Item = String>>(mut args: T) -> Result<Self, String> {
+        match args.next() {
+            Some(command) => match command.as_str() {
+                "action" => match args.next() {
+                    Some(subcommand) => match subcommand.as_str() {
+                        "add" => {
+                            let args = args.collect::<Vec<_>>();
+                            if args.is_empty() {
+                                return Err("missing description".into());
+                            }
+                            Ok(Self::Action(ActionSubcommand::Add {
+                                description: args.join(" "),
+                            }))
+                        }
+                        "ls" => {
+                            if let Some(arg) = args.next() {
+                                return Err(format!("extra argument: `{}`", arg));
+                            }
+                            Ok(Self::Action(ActionSubcommand::List))
+                        }
+                        "rm" => {
+                            let args = args.collect::<Vec<_>>();
+                            if args.is_empty() {
+                                return Err("missing description".into());
+                            }
+                            Ok(Self::Action(ActionSubcommand::Remove {
+                                description: args.join(" "),
+                            }))
+                        }
+                        "set" => match args.next() {
+                            Some(field) => match field.as_str() {
+                                "description" => {
+                                    let old_description = args
+                                        .next()
+                                        .ok_or_else(|| "missing old description".to_string())?;
+                                    let args = args.collect::<Vec<_>>();
+                                    if args.is_empty() {
+                                        return Err("missing new description".into());
+                                    }
+                                    Ok(Self::Action(ActionSubcommand::SetDescription {
+                                        old_description,
+                                        new_description: args.join(" "),
+                                    }))
+                                }
+                                _ => Err(format!("no such field: `{}`", field)),
+                            },
+                            None => Err("missing field".into()),
+                        },
+                        _ => Err(format!("no such subcommand: `{}`", subcommand)),
+                    },
+                    None => Err("missing subcommand".into()),
+                },
+                "goal" => match args.next() {
+                    Some(subcommand) => match subcommand.as_str() {
+                        "add" => {
+                            let mut action = None;
+                            let mut args = args.collect::<Vec<_>>();
+                            if !args.is_empty() && args[0] == "--action" {
+                                args.remove(0);
+                                if args.is_empty() {
+                                    return Err("option `--action` requires an argument".into());
+                                }
+                                action = Some(args.remove(0));
+                            }
+                            if args.is_empty() {
+                                return Err("missing description".into());
+                            }
+                            Ok(Self::Goal(GoalSubcommand::Add {
+                                action,
+                                description: args.join(" "),
+                            }))
+                        }
+                        "ls" => {
+                            let mut all = false;
+                            while let Some(arg) = args.next() {
+                                if arg == "--all" {
+                                    all = true;
+                                } else {
+                                    return Err(format!("extra argument: `{}`", arg));
+                                }
+                            }
+                            Ok(Self::Goal(GoalSubcommand::List { all }))
+                        }
+                        "rm" => {
+                            let args = args.collect::<Vec<_>>();
+                            if args.is_empty() {
+                                return Err("missing description".into());
+                            }
+                            Ok(Self::Goal(GoalSubcommand::Remove {
+                                description: args.join(" "),
+                            }))
+                        }
+                        "set" => match args.next() {
+                            Some(field) => match field.as_str() {
+                                "action" => {
+                                    let description = args
+                                        .next()
+                                        .ok_or_else(|| "missing description".to_string())?;
+                                    let args = args.collect::<Vec<_>>();
+                                    if args.is_empty() {
+                                        return Err("missing action".into());
+                                    }
+                                    Ok(Self::Goal(GoalSubcommand::SetAction {
+                                        description,
+                                        action: args.join(" "),
+                                    }))
+                                }
+                                "description" => {
+                                    let old_description = args
+                                        .next()
+                                        .ok_or_else(|| "missing old description".to_string())?;
+                                    let args = args.collect::<Vec<_>>();
+                                    if args.is_empty() {
+                                        return Err("missing new description".into());
+                                    }
+                                    Ok(Self::Goal(GoalSubcommand::SetDescription {
+                                        old_description,
+                                        new_description: args.join(" "),
+                                    }))
+                                }
+                                _ => Err(format!("no such field: `{}`", field)),
+                            },
+                            None => Err("missing field".into()),
+                        },
+                        "unset" => match args.next() {
+                            Some(field) => match field.as_str() {
+                                "action" => {
+                                    let args = args.collect::<Vec<_>>();
+                                    if args.is_empty() {
+                                        return Err("missing description".into());
+                                    }
+                                    Ok(Self::Goal(GoalSubcommand::UnsetAction {
+                                        description: args.join(" "),
+                                    }))
+                                }
+                                _ => Err(format!("no such field: `{}`", field)),
+                            },
+                            None => Err("missing field".into()),
+                        },
+                        _ => Err(format!("no such subcommand: `{}`", subcommand)),
+                    },
+                    None => Err("missing subcommand".into()),
+                },
+                _ => Err(format!("no such command: `{}`", command)),
+            },
+            None => Err("missing command".into()),
+        }
+    }
+
     fn run(self, connection: &Connection) -> Result<(), String> {
         match self {
             Self::Action(subcommand) => match subcommand {
@@ -526,7 +526,7 @@ mod tests {
     #[test]
     fn reports_missing_command() {
         assert_eq!(
-            parse_args(IntoIter::new([])),
+            Command::from_args(IntoIter::new([])),
             Err("missing command".to_string())
         );
     }
@@ -534,7 +534,7 @@ mod tests {
     #[test]
     fn reports_no_such_command() {
         assert_eq!(
-            parse_args(IntoIter::new(["foo".to_string()])),
+            Command::from_args(IntoIter::new(["foo".to_string()])),
             Err("no such command: `foo`".to_string())
         );
     }
@@ -542,7 +542,7 @@ mod tests {
     #[test]
     fn reports_missing_action_subcommand() {
         assert_eq!(
-            parse_args(IntoIter::new(["action".to_string()])),
+            Command::from_args(IntoIter::new(["action".to_string()])),
             Err("missing subcommand".to_string())
         );
     }
@@ -550,7 +550,7 @@ mod tests {
     #[test]
     fn reports_no_such_action_subcommand() {
         assert_eq!(
-            parse_args(IntoIter::new(["action".to_string(), "foo".to_string()])),
+            Command::from_args(IntoIter::new(["action".to_string(), "foo".to_string()])),
             Err("no such subcommand: `foo`".to_string())
         );
     }
@@ -558,7 +558,7 @@ mod tests {
     #[test]
     fn reports_missing_action_add_description() {
         assert_eq!(
-            parse_args(IntoIter::new(["action".to_string(), "add".to_string()])),
+            Command::from_args(IntoIter::new(["action".to_string(), "add".to_string()])),
             Err("missing description".to_string())
         );
     }
@@ -566,7 +566,7 @@ mod tests {
     #[test]
     fn reports_extra_action_ls_argument() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "action".to_string(),
                 "ls".to_string(),
                 "foo".to_string()
@@ -578,7 +578,7 @@ mod tests {
     #[test]
     fn reports_missing_action_rm_description() {
         assert_eq!(
-            parse_args(IntoIter::new(["action".to_string(), "rm".to_string()])),
+            Command::from_args(IntoIter::new(["action".to_string(), "rm".to_string()])),
             Err("missing description".to_string())
         );
     }
@@ -586,7 +586,7 @@ mod tests {
     #[test]
     fn reports_missing_action_set_field() {
         assert_eq!(
-            parse_args(IntoIter::new(["action".to_string(), "set".to_string()])),
+            Command::from_args(IntoIter::new(["action".to_string(), "set".to_string()])),
             Err("missing field".to_string())
         );
     }
@@ -594,7 +594,7 @@ mod tests {
     #[test]
     fn reports_no_such_action_field() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "action".to_string(),
                 "set".to_string(),
                 "foo".to_string(),
@@ -606,7 +606,7 @@ mod tests {
     #[test]
     fn reports_missing_old_action_description() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "action".to_string(),
                 "set".to_string(),
                 "description".to_string(),
@@ -618,7 +618,7 @@ mod tests {
     #[test]
     fn reports_missing_new_action_description() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "action".to_string(),
                 "set".to_string(),
                 "description".to_string(),
@@ -631,7 +631,7 @@ mod tests {
     #[test]
     fn parses_action_set_description() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "action".to_string(),
                 "set".to_string(),
                 "description".to_string(),
@@ -650,7 +650,7 @@ mod tests {
     #[test]
     fn reports_missing_goal_subcommand() {
         assert_eq!(
-            parse_args(IntoIter::new(["goal".to_string()])),
+            Command::from_args(IntoIter::new(["goal".to_string()])),
             Err("missing subcommand".to_string())
         );
     }
@@ -658,7 +658,7 @@ mod tests {
     #[test]
     fn reports_no_such_goal_subcommand() {
         assert_eq!(
-            parse_args(IntoIter::new(["goal".to_string(), "foo".to_string()])),
+            Command::from_args(IntoIter::new(["goal".to_string(), "foo".to_string()])),
             Err("no such subcommand: `foo`".to_string())
         );
     }
@@ -666,7 +666,7 @@ mod tests {
     #[test]
     fn reports_missing_goal_add_description() {
         assert_eq!(
-            parse_args(IntoIter::new(["goal".to_string(), "add".to_string()])),
+            Command::from_args(IntoIter::new(["goal".to_string(), "add".to_string()])),
             Err("missing description".to_string())
         );
     }
@@ -674,7 +674,7 @@ mod tests {
     #[test]
     fn reports_missing_goal_action() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "add".to_string(),
                 "--action".to_string()
@@ -686,7 +686,7 @@ mod tests {
     #[test]
     fn reports_extra_goal_ls_argument() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "ls".to_string(),
                 "foo".to_string()
@@ -698,7 +698,7 @@ mod tests {
     #[test]
     fn reports_extra_goal_ls_argument_after_all() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "ls".to_string(),
                 "--all".to_string(),
@@ -711,7 +711,7 @@ mod tests {
     #[test]
     fn parses_goal_ls() {
         assert_eq!(
-            parse_args(IntoIter::new(["goal".to_string(), "ls".to_string()])),
+            Command::from_args(IntoIter::new(["goal".to_string(), "ls".to_string()])),
             Ok(Command::Goal(GoalSubcommand::List { all: false }))
         );
     }
@@ -719,7 +719,7 @@ mod tests {
     #[test]
     fn parses_goal_ls_all() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "ls".to_string(),
                 "--all".to_string()
@@ -731,7 +731,7 @@ mod tests {
     #[test]
     fn reports_missing_goal_rm_description() {
         assert_eq!(
-            parse_args(IntoIter::new(["goal".to_string(), "rm".to_string()])),
+            Command::from_args(IntoIter::new(["goal".to_string(), "rm".to_string()])),
             Err("missing description".to_string())
         );
     }
@@ -739,7 +739,7 @@ mod tests {
     #[test]
     fn reports_missing_goal_set_field() {
         assert_eq!(
-            parse_args(IntoIter::new(["goal".to_string(), "set".to_string()])),
+            Command::from_args(IntoIter::new(["goal".to_string(), "set".to_string()])),
             Err("missing field".to_string())
         );
     }
@@ -747,7 +747,7 @@ mod tests {
     #[test]
     fn reports_no_such_goal_set_field() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "set".to_string(),
                 "foo".to_string(),
@@ -759,7 +759,7 @@ mod tests {
     #[test]
     fn reports_missing_goal_set_description() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "set".to_string(),
                 "action".to_string(),
@@ -771,7 +771,7 @@ mod tests {
     #[test]
     fn reports_missing_action() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "set".to_string(),
                 "action".to_string(),
@@ -784,7 +784,7 @@ mod tests {
     #[test]
     fn parses_goal_set_action() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "set".to_string(),
                 "action".to_string(),
@@ -803,7 +803,7 @@ mod tests {
     #[test]
     fn reports_missing_old_goal_description() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "set".to_string(),
                 "description".to_string(),
@@ -815,7 +815,7 @@ mod tests {
     #[test]
     fn reports_missing_new_goal_description() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "set".to_string(),
                 "description".to_string(),
@@ -828,7 +828,7 @@ mod tests {
     #[test]
     fn parses_goal_set_description() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "set".to_string(),
                 "description".to_string(),
@@ -847,7 +847,7 @@ mod tests {
     #[test]
     fn reports_missing_goal_unset_field() {
         assert_eq!(
-            parse_args(IntoIter::new(["goal".to_string(), "unset".to_string()])),
+            Command::from_args(IntoIter::new(["goal".to_string(), "unset".to_string()])),
             Err("missing field".to_string())
         );
     }
@@ -855,7 +855,7 @@ mod tests {
     #[test]
     fn reports_no_such_goal_unset_field() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "unset".to_string(),
                 "foo".to_string(),
@@ -867,7 +867,7 @@ mod tests {
     #[test]
     fn reports_missing_goal_unset_description() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "unset".to_string(),
                 "action".to_string(),
@@ -879,7 +879,7 @@ mod tests {
     #[test]
     fn parses_goal_unset_action() {
         assert_eq!(
-            parse_args(IntoIter::new([
+            Command::from_args(IntoIter::new([
                 "goal".to_string(),
                 "unset".to_string(),
                 "action".to_string(),

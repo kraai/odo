@@ -37,8 +37,7 @@ pub fn run<T: Iterator<Item = String>>(args: T) -> Result<(), String> {
     let database_path = data_dir.join("odo.sqlite3");
     let connection = Connection::open(&database_path)
         .map_err(|e| format!("unable to open `{}`: {}", database_path.display(), e))?;
-    initialize(&connection)
-        .map_err(|e| format!("unable to initialize `{}`: {}", database_path.display(), e))?;
+    initialize(&connection).map_err(|e| format!("unable to initialize database: {}", e))?;
     match command {
         Command::Action(subcommand) => match subcommand {
             ActionSubcommand::Add { description } => add_action(&connection, description)?,

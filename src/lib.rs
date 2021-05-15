@@ -24,19 +24,7 @@ use std::{
 
 pub fn run<T: Iterator<Item = String>>(args: T) -> Result<(), String> {
     let command = parse_args(args)?;
-    let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
-        .ok_or("unable to determine project directories")?;
-    let data_dir = project_dirs.data_dir();
-    let mut builder = DirBuilder::new();
-    #[cfg(all(unix, not(target_os = "macos")))]
-    builder.mode(0o700);
-    builder
-        .recursive(true)
-        .create(data_dir)
-        .map_err(|e| format!("unable to create `{}`: {}", data_dir.display(), e))?;
-    let database_path = data_dir.join("odo.sqlite3");
-    let connection = Connection::open(&database_path)
-        .map_err(|e| format!("unable to open `{}`: {}", database_path.display(), e))?;
+    let connection = open_database()?;
     initialize(&connection).map_err(|e| format!("unable to initialize database: {}", e))?;
     match command {
         Command::Action(subcommand) => match subcommand {
@@ -264,6 +252,22 @@ enum GoalSubcommand {
     UnsetAction {
         description: String,
     },
+}
+
+fn open_database() -> Result<Connection, String> {
+    let project_dirs = ProjectDirs::from("org.ftbfs", "", "odo")
+        .ok_or("unable to determine project directories")?;
+    let data_dir = project_dirs.data_dir();
+    let mut builder = DirBuilder::new();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    builder.mode(0o700);
+    builder
+        .recursive(true)
+        .create(data_dir)
+        .map_err(|e| format!("unable to create `{}`: {}", data_dir.display(), e))?;
+    let database_path = data_dir.join("odo.sqlite3");
+    Connection::open(&database_path)
+        .map_err(|e| format!("unable to open `{}`: {}", database_path.display(), e))
 }
 
 fn initialize(connection: &Connection) -> Result<(), String> {

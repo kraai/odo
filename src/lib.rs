@@ -26,37 +26,7 @@ pub fn run<T: Iterator<Item = String>>(args: T) -> Result<(), String> {
     let command = parse_args(args)?;
     let connection = open_database()?;
     initialize(&connection).map_err(|e| format!("unable to initialize database: {}", e))?;
-    match command {
-        Command::Action(subcommand) => match subcommand {
-            ActionSubcommand::Add { description } => add_action(&connection, description)?,
-            ActionSubcommand::List => list_actions(&connection, &mut io::stdout())?,
-            ActionSubcommand::Remove { description } => remove_action(&connection, description)?,
-            ActionSubcommand::SetDescription {
-                old_description,
-                new_description,
-            } => set_action_description(&connection, old_description, new_description)?,
-        },
-        Command::Goal(subcommand) => match subcommand {
-            GoalSubcommand::Add {
-                description,
-                action,
-            } => add_goal(&connection, description, action)?,
-            GoalSubcommand::List { all } => list_goals(&connection, all, &mut io::stdout())?,
-            GoalSubcommand::Remove { description } => remove_goal(&connection, description)?,
-            GoalSubcommand::SetAction {
-                description,
-                action,
-            } => set_goal_action(&connection, description, action)?,
-            GoalSubcommand::SetDescription {
-                old_description,
-                new_description,
-            } => set_goal_description(&connection, old_description, new_description)?,
-            GoalSubcommand::UnsetAction { description } => {
-                unset_goal_action(&connection, description)?
-            }
-        },
-    }
-    Ok(())
+    command.run(&connection)
 }
 
 fn parse_args<T: Iterator<Item = String>>(mut args: T) -> Result<Command, String> {
@@ -212,6 +182,44 @@ fn parse_args<T: Iterator<Item = String>>(mut args: T) -> Result<Command, String
 enum Command {
     Action(ActionSubcommand),
     Goal(GoalSubcommand),
+}
+
+impl Command {
+    fn run(self, connection: &Connection) -> Result<(), String> {
+        match self {
+            Self::Action(subcommand) => match subcommand {
+                ActionSubcommand::Add { description } => add_action(&connection, description)?,
+                ActionSubcommand::List => list_actions(&connection, &mut io::stdout())?,
+                ActionSubcommand::Remove { description } => {
+                    remove_action(&connection, description)?
+                }
+                ActionSubcommand::SetDescription {
+                    old_description,
+                    new_description,
+                } => set_action_description(&connection, old_description, new_description)?,
+            },
+            Self::Goal(subcommand) => match subcommand {
+                GoalSubcommand::Add {
+                    description,
+                    action,
+                } => add_goal(&connection, description, action)?,
+                GoalSubcommand::List { all } => list_goals(&connection, all, &mut io::stdout())?,
+                GoalSubcommand::Remove { description } => remove_goal(&connection, description)?,
+                GoalSubcommand::SetAction {
+                    description,
+                    action,
+                } => set_goal_action(&connection, description, action)?,
+                GoalSubcommand::SetDescription {
+                    old_description,
+                    new_description,
+                } => set_goal_description(&connection, old_description, new_description)?,
+                GoalSubcommand::UnsetAction { description } => {
+                    unset_goal_action(&connection, description)?
+                }
+            },
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, PartialEq)]

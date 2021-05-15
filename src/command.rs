@@ -26,146 +26,10 @@ impl Command {
     pub fn from_args<T: Iterator<Item = String>>(mut args: T) -> Result<Self, String> {
         match args.next() {
             Some(command) => match command.as_str() {
-                "action" => match args.next() {
-                    Some(subcommand) => match subcommand.as_str() {
-                        "add" => {
-                            let args = args.collect::<Vec<_>>();
-                            if args.is_empty() {
-                                return Err("missing description".into());
-                            }
-                            Ok(Self::Action(ActionSubcommand::Add {
-                                description: args.join(" "),
-                            }))
-                        }
-                        "ls" => {
-                            if let Some(arg) = args.next() {
-                                return Err(format!("extra argument: `{}`", arg));
-                            }
-                            Ok(Self::Action(ActionSubcommand::List))
-                        }
-                        "rm" => {
-                            let args = args.collect::<Vec<_>>();
-                            if args.is_empty() {
-                                return Err("missing description".into());
-                            }
-                            Ok(Self::Action(ActionSubcommand::Remove {
-                                description: args.join(" "),
-                            }))
-                        }
-                        "set" => match args.next() {
-                            Some(field) => match field.as_str() {
-                                "description" => {
-                                    let old_description = args
-                                        .next()
-                                        .ok_or_else(|| "missing old description".to_string())?;
-                                    let args = args.collect::<Vec<_>>();
-                                    if args.is_empty() {
-                                        return Err("missing new description".into());
-                                    }
-                                    Ok(Self::Action(ActionSubcommand::SetDescription {
-                                        old_description,
-                                        new_description: args.join(" "),
-                                    }))
-                                }
-                                _ => Err(format!("no such field: `{}`", field)),
-                            },
-                            None => Err("missing field".into()),
-                        },
-                        _ => Err(format!("no such subcommand: `{}`", subcommand)),
-                    },
-                    None => Err("missing subcommand".into()),
-                },
-                "goal" => match args.next() {
-                    Some(subcommand) => match subcommand.as_str() {
-                        "add" => {
-                            let mut action = None;
-                            let mut args = args.collect::<Vec<_>>();
-                            if !args.is_empty() && args[0] == "--action" {
-                                args.remove(0);
-                                if args.is_empty() {
-                                    return Err("option `--action` requires an argument".into());
-                                }
-                                action = Some(args.remove(0));
-                            }
-                            if args.is_empty() {
-                                return Err("missing description".into());
-                            }
-                            Ok(Self::Goal(GoalSubcommand::Add {
-                                action,
-                                description: args.join(" "),
-                            }))
-                        }
-                        "ls" => {
-                            let mut all = false;
-                            while let Some(arg) = args.next() {
-                                if arg == "--all" {
-                                    all = true;
-                                } else {
-                                    return Err(format!("extra argument: `{}`", arg));
-                                }
-                            }
-                            Ok(Self::Goal(GoalSubcommand::List { all }))
-                        }
-                        "rm" => {
-                            let args = args.collect::<Vec<_>>();
-                            if args.is_empty() {
-                                return Err("missing description".into());
-                            }
-                            Ok(Self::Goal(GoalSubcommand::Remove {
-                                description: args.join(" "),
-                            }))
-                        }
-                        "set" => match args.next() {
-                            Some(field) => match field.as_str() {
-                                "action" => {
-                                    let description = args
-                                        .next()
-                                        .ok_or_else(|| "missing description".to_string())?;
-                                    let args = args.collect::<Vec<_>>();
-                                    if args.is_empty() {
-                                        return Err("missing action".into());
-                                    }
-                                    Ok(Self::Goal(GoalSubcommand::SetAction {
-                                        description,
-                                        action: args.join(" "),
-                                    }))
-                                }
-                                "description" => {
-                                    let old_description = args
-                                        .next()
-                                        .ok_or_else(|| "missing old description".to_string())?;
-                                    let args = args.collect::<Vec<_>>();
-                                    if args.is_empty() {
-                                        return Err("missing new description".into());
-                                    }
-                                    Ok(Self::Goal(GoalSubcommand::SetDescription {
-                                        old_description,
-                                        new_description: args.join(" "),
-                                    }))
-                                }
-                                _ => Err(format!("no such field: `{}`", field)),
-                            },
-                            None => Err("missing field".into()),
-                        },
-                        "unset" => match args.next() {
-                            Some(field) => match field.as_str() {
-                                "action" => {
-                                    let args = args.collect::<Vec<_>>();
-                                    if args.is_empty() {
-                                        return Err("missing description".into());
-                                    }
-                                    Ok(Self::Goal(GoalSubcommand::UnsetAction {
-                                        description: args.join(" "),
-                                    }))
-                                }
-                                _ => Err(format!("no such field: `{}`", field)),
-                            },
-                            None => Err("missing field".into()),
-                        },
-                        _ => Err(format!("no such subcommand: `{}`", subcommand)),
-                    },
-                    None => Err("missing subcommand".into()),
-                },
+                "action" => {
+                    ActionSubcommand::from_args(args).map(|subcommand| Self::Action(subcommand))
+                }
+                "goal" => GoalSubcommand::from_args(args).map(|subcommand| Self::Goal(subcommand)),
                 _ => Err(format!("no such command: `{}`", command)),
             },
             None => Err("missing command".into()),
@@ -174,34 +38,8 @@ impl Command {
 
     pub fn run(self, connection: &Connection) -> Result<(), String> {
         match self {
-            Self::Action(subcommand) => match subcommand {
-                ActionSubcommand::Add { description } => add_action(&connection, description),
-                ActionSubcommand::List => list_actions(&connection, &mut io::stdout()),
-                ActionSubcommand::Remove { description } => remove_action(&connection, description),
-                ActionSubcommand::SetDescription {
-                    old_description,
-                    new_description,
-                } => set_action_description(&connection, old_description, new_description),
-            },
-            Self::Goal(subcommand) => match subcommand {
-                GoalSubcommand::Add {
-                    description,
-                    action,
-                } => add_goal(&connection, description, action),
-                GoalSubcommand::List { all } => list_goals(&connection, all, &mut io::stdout()),
-                GoalSubcommand::Remove { description } => remove_goal(&connection, description),
-                GoalSubcommand::SetAction {
-                    description,
-                    action,
-                } => set_goal_action(&connection, description, action),
-                GoalSubcommand::SetDescription {
-                    old_description,
-                    new_description,
-                } => set_goal_description(&connection, old_description, new_description),
-                GoalSubcommand::UnsetAction { description } => {
-                    unset_goal_action(&connection, description)
-                }
-            },
+            Self::Action(subcommand) => subcommand.run(&connection),
+            Self::Goal(subcommand) => subcommand.run(&connection),
         }
     }
 }
@@ -219,6 +57,72 @@ pub enum ActionSubcommand {
         old_description: String,
         new_description: String,
     },
+}
+
+impl ActionSubcommand {
+    pub fn from_args<T: Iterator<Item = String>>(mut args: T) -> Result<Self, String> {
+        match args.next() {
+            Some(subcommand) => match subcommand.as_str() {
+                "add" => {
+                    let args = args.collect::<Vec<_>>();
+                    if args.is_empty() {
+                        return Err("missing description".into());
+                    }
+                    Ok(Self::Add {
+                        description: args.join(" "),
+                    })
+                }
+                "ls" => {
+                    if let Some(arg) = args.next() {
+                        return Err(format!("extra argument: `{}`", arg));
+                    }
+                    Ok(Self::List)
+                }
+                "rm" => {
+                    let args = args.collect::<Vec<_>>();
+                    if args.is_empty() {
+                        return Err("missing description".into());
+                    }
+                    Ok(Self::Remove {
+                        description: args.join(" "),
+                    })
+                }
+                "set" => match args.next() {
+                    Some(field) => match field.as_str() {
+                        "description" => {
+                            let old_description = args
+                                .next()
+                                .ok_or_else(|| "missing old description".to_string())?;
+                            let args = args.collect::<Vec<_>>();
+                            if args.is_empty() {
+                                return Err("missing new description".into());
+                            }
+                            Ok(Self::SetDescription {
+                                old_description,
+                                new_description: args.join(" "),
+                            })
+                        }
+                        _ => Err(format!("no such field: `{}`", field)),
+                    },
+                    None => Err("missing field".into()),
+                },
+                _ => Err(format!("no such subcommand: `{}`", subcommand)),
+            },
+            None => Err("missing subcommand".into()),
+        }
+    }
+
+    pub fn run(self, connection: &Connection) -> Result<(), String> {
+        match self {
+            Self::Add { description } => add_action(&connection, description),
+            Self::List => list_actions(&connection, &mut io::stdout()),
+            Self::Remove { description } => remove_action(&connection, description),
+            Self::SetDescription {
+                old_description,
+                new_description,
+            } => set_action_description(&connection, old_description, new_description),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -244,6 +148,122 @@ pub enum GoalSubcommand {
     UnsetAction {
         description: String,
     },
+}
+
+impl GoalSubcommand {
+    pub fn from_args<T: Iterator<Item = String>>(mut args: T) -> Result<Self, String> {
+        match args.next() {
+            Some(subcommand) => match subcommand.as_str() {
+                "add" => {
+                    let mut action = None;
+                    let mut args = args.collect::<Vec<_>>();
+                    if !args.is_empty() && args[0] == "--action" {
+                        args.remove(0);
+                        if args.is_empty() {
+                            return Err("option `--action` requires an argument".into());
+                        }
+                        action = Some(args.remove(0));
+                    }
+                    if args.is_empty() {
+                        return Err("missing description".into());
+                    }
+                    Ok(Self::Add {
+                        action,
+                        description: args.join(" "),
+                    })
+                }
+                "ls" => {
+                    let mut all = false;
+                    while let Some(arg) = args.next() {
+                        if arg == "--all" {
+                            all = true;
+                        } else {
+                            return Err(format!("extra argument: `{}`", arg));
+                        }
+                    }
+                    Ok(Self::List { all })
+                }
+                "rm" => {
+                    let args = args.collect::<Vec<_>>();
+                    if args.is_empty() {
+                        return Err("missing description".into());
+                    }
+                    Ok(Self::Remove {
+                        description: args.join(" "),
+                    })
+                }
+                "set" => match args.next() {
+                    Some(field) => match field.as_str() {
+                        "action" => {
+                            let description = args
+                                .next()
+                                .ok_or_else(|| "missing description".to_string())?;
+                            let args = args.collect::<Vec<_>>();
+                            if args.is_empty() {
+                                return Err("missing action".into());
+                            }
+                            Ok(Self::SetAction {
+                                description,
+                                action: args.join(" "),
+                            })
+                        }
+                        "description" => {
+                            let old_description = args
+                                .next()
+                                .ok_or_else(|| "missing old description".to_string())?;
+                            let args = args.collect::<Vec<_>>();
+                            if args.is_empty() {
+                                return Err("missing new description".into());
+                            }
+                            Ok(Self::SetDescription {
+                                old_description,
+                                new_description: args.join(" "),
+                            })
+                        }
+                        _ => Err(format!("no such field: `{}`", field)),
+                    },
+                    None => Err("missing field".into()),
+                },
+                "unset" => match args.next() {
+                    Some(field) => match field.as_str() {
+                        "action" => {
+                            let args = args.collect::<Vec<_>>();
+                            if args.is_empty() {
+                                return Err("missing description".into());
+                            }
+                            Ok(Self::UnsetAction {
+                                description: args.join(" "),
+                            })
+                        }
+                        _ => Err(format!("no such field: `{}`", field)),
+                    },
+                    None => Err("missing field".into()),
+                },
+                _ => Err(format!("no such subcommand: `{}`", subcommand)),
+            },
+            None => Err("missing subcommand".into()),
+        }
+    }
+
+    pub fn run(self, connection: &Connection) -> Result<(), String> {
+        match self {
+            Self::Add {
+                description,
+                action,
+            } => add_goal(&connection, description, action),
+            Self::List { all } => list_goals(&connection, all, &mut io::stdout()),
+            Self::Remove { description } => remove_goal(&connection, description),
+            Self::SetAction {
+                description,
+                action,
+            } => set_goal_action(&connection, description, action),
+            Self::SetDescription {
+                old_description,
+                new_description,
+            } => set_goal_description(&connection, old_description, new_description),
+            Self::UnsetAction { description } => unset_goal_action(&connection, description),
+        }
+    }
 }
 
 fn add_action<T: AsRef<str>>(connection: &Connection, description: T) -> Result<(), String> {

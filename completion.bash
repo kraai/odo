@@ -73,7 +73,9 @@ _odo()
 			    fi
 			    ;;
 			ls)
-			    COMPREPLY=($(compgen -W '--all' -- "$cur"))
+			    if [[ $cur == -* ]]; then
+				COMPREPLY=($(compgen -W '--all' -- "$cur"))
+			    fi
 			    ;;
 			rm)
 			    if [[ $cword == 3 ]]; then

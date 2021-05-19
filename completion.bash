@@ -13,18 +13,37 @@
 # You should have received a copy of the GNU Affero General Public License along with odo.  If not,
 # see <https://www.gnu.org/licenses/>.
 
+_escape_compreply()
+{
+    COMPREPLY=(${COMPREPLY[@]//\\/\\\\})
+    COMPREPLY=(${COMPREPLY[@]// /\\ })
+    COMPREPLY=(${COMPREPLY[@]//!/\\!})
+    COMPREPLY=(${COMPREPLY[@]//\"/\\\"})
+    COMPREPLY=(${COMPREPLY[@]//#/\\#})
+    COMPREPLY=(${COMPREPLY[@]//$/\\$})
+    COMPREPLY=(${COMPREPLY[@]//&/\\&})
+    COMPREPLY=(${COMPREPLY[@]//\'/\\\'})
+    COMPREPLY=(${COMPREPLY[@]//\(/\\(})
+    COMPREPLY=(${COMPREPLY[@]//)/\\)})
+    COMPREPLY=(${COMPREPLY[@]//\*/\\*})
+    COMPREPLY=(${COMPREPLY[@]//;/\\;})
+    COMPREPLY=(${COMPREPLY[@]//</\\<})
+    COMPREPLY=(${COMPREPLY[@]//>/\\>})
+    COMPREPLY=(${COMPREPLY[@]//|/\\|})
+}
+
 _actions()
 {
     local IFS=$'\n'
     COMPREPLY=($(compgen -W '$(odo action ls)' -- "$cur"))
-    COMPREPLY=(${COMPREPLY[@]// /\\ })
+    _escape_compreply
 }
 
 _goals()
 {
     local IFS=$'\n'
     COMPREPLY=($(compgen -W '$(odo goal ls)' -- "$cur"))
-    COMPREPLY=(${COMPREPLY[@]// /\\ })
+    _escape_compreply
 }
 
 _odo()

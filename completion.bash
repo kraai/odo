@@ -43,7 +43,7 @@ _actions()
 _goals()
 {
     local IFS=$'\n'
-    COMPREPLY=($(compgen -W '$(odo goal ls)' -- "$cur"))
+    COMPREPLY=($(compgen -W '$(odo goal ls --all)' -- "$cur"))
     _escape_compreply
 }
 
